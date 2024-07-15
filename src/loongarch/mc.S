@@ -5257,7 +5257,7 @@ endfunc
     vreplvei.w      vr21,    vr9,   2
     vreplvei.w      vr22,    vr9,   3
     vreplvei.w      vr9,     vr9,   0
-.l_\lable\()put_hv_8w_loop0_lsx:
+.l_\lable\()prep_hv_8w_loop0_lsx:
     vld             vr0,     a1,    0
     vldx            vr1,     a1,    a2
     vldx            vr2,     a1,    t2
@@ -5294,7 +5294,7 @@ endfunc
     vilvh.h         vr1,     vr4,   vr3 //34
     vilvh.h         vr2,     vr6,   vr5 //56
 
-.l_\lable\()put_hv_8w_loop_lsx:
+.l_\lable\()prep_hv_8w_loop_lsx:
     vld             vr3,     a1,    0
     vldx            vr4,     a1,    a2
     add.d           a1,      a1,    t2
@@ -5382,14 +5382,14 @@ endfunc
     vaddi.hu        vr1,     vr2,   0
     vaddi.hu        vr2,     vr4,   0
     addi.w          a4,      a4,    -2
-    bnez            a4,      .l_\lable\()put_hv_8w_loop_lsx
+    bnez            a4,      .l_\lable\()prep_hv_8w_loop_lsx
     addi.d          a1,      t0,    8
     addi.d          t0,      t0,    8
     addi.d          a0,      t8,    16
     addi.d          t8,      t8,    16
     addi.d          a4,      t5,    0
     addi.w          a3,      a3,    -8
-    bnez            a3,      .l_\lable\()put_hv_8w_loop0_lsx
+    bnez            a3,      .l_\lable\()prep_hv_8w_loop0_lsx
     fld.d           f24,     sp,    0
     fld.d           f25,     sp,    8
     fld.d           f26,     sp,    16
