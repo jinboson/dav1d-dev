@@ -7200,6 +7200,194 @@ const eob_8x32
         .short 43, 107, 171, 256
 endconst
 
+function inv_txfm_add_dct_dct_32x16_8bpc_lsx
+    bnez          a3,       .NO_HAS_DCONLY_32x16
+
+    ld.h          t2,       a2,       0      // dc
+    vldi          vr0,      0x8b5            // 181
+    vreplgr2vr.w  vr1,      t2
+    vldi          vr20,     0x880            // 128
+    vmul.w        vr2,      vr0,      vr1    // dc * 181
+    st.h          zero,     a2,       0
+    add.d         t0,       a0,       a1
+    vsrari.w      vr2,      vr2,      8      // (dc * 181 + 128) >> 8
+    vmul.w        vr2,      vr2,      vr0
+    vsrari.w      vr2,      vr2,      8
+    vld           vr3,      t0,       16
+    vsrari.w      vr2,      vr2,      1      // (dc + rnd) >> shift
+    vld           vr1,      a0,       16
+    vmadd.w       vr20,     vr2,      vr0
+    vld           vr2,      t0,       0
+    vssrarni.h.w  vr20,     vr20,     12
+    vld           vr0,      a0,       0
+
+    vsllwil.hu.bu vr4,      vr0,      0
+    vsllwil.hu.bu vr5,      vr1,      0
+    vsllwil.hu.bu vr6,      vr2,      0
+    vsllwil.hu.bu vr7,      vr3,      0
+    vexth.hu.bu   vr0,      vr0
+    vexth.hu.bu   vr1,      vr1
+    vexth.hu.bu   vr2,      vr2
+    vexth.hu.bu   vr3,      vr3
+    vadd.h        vr8,      vr4,      vr20
+    vadd.h        vr9,      vr0,      vr20
+    vadd.h        vr10,     vr5,      vr20
+    vadd.h        vr11,     vr1,      vr20
+    vadd.h        vr12,     vr6,      vr20
+    vadd.h        vr13,     vr2,      vr20
+    vadd.h        vr14,     vr7,      vr20
+    vadd.h        vr15,     vr3,      vr20
+    vssrani.bu.h  vr9,      vr8,      0
+    vssrani.bu.h  vr11,     vr10,     0
+    vssrani.bu.h  vr13,     vr12,     0
+    vssrani.bu.h  vr15,     vr14,     0
+    vst           vr9,      a0,       0
+    vst           vr11,     a0,       16
+    vst           vr13,     t0,       0
+    vst           vr15,     t0,       16
+
+.rept 7
+    alsl.d        a0,       a1,       a0,     1
+    add.d         t0,       a0,       a1
+
+    vld           vr0,      a0,       0
+    vld           vr1,      a0,       16
+    vld           vr2,      t0,       0
+    vld           vr3,      t0,       16
+    vsllwil.hu.bu vr4,      vr0,      0
+    vsllwil.hu.bu vr5,      vr1,      0
+    vsllwil.hu.bu vr6,      vr2,      0
+    vsllwil.hu.bu vr7,      vr3,      0
+    vexth.hu.bu   vr0,      vr0
+    vexth.hu.bu   vr1,      vr1
+    vexth.hu.bu   vr2,      vr2
+    vexth.hu.bu   vr3,      vr3
+    vadd.h        vr8,      vr4,      vr20
+    vadd.h        vr9,      vr0,      vr20
+    vadd.h        vr10,     vr5,      vr20
+    vadd.h        vr11,     vr1,      vr20
+    vadd.h        vr12,     vr6,      vr20
+    vadd.h        vr13,     vr2,      vr20
+    vadd.h        vr14,     vr7,      vr20
+    vadd.h        vr15,     vr3,      vr20
+    vssrani.bu.h  vr9,      vr8,      0
+    vssrani.bu.h  vr11,     vr10,     0
+    vssrani.bu.h  vr13,     vr12,     0
+    vssrani.bu.h  vr15,     vr14,     0
+    vst           vr9,      a0,       0
+    vst           vr11,     a0,       16
+    vst           vr13,     t0,       0
+    vst           vr15,     t0,       16
+.endr
+
+    b             .DCT_DCT_32X16_END
+.NO_HAS_DCONLY_32x16:
+
+    malloc_space 1024+256                            // 32*32*2+512
+
+    addi.d        t1,       sp,       64
+    addi.d        t2,       a2,       0
+    addi.d        t3,       sp,       64
+    addi.d        t3,       t3,       1024
+
+.rept 2
+    vld_x16 t2, 0, 64, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr19, vr24, vr25, vr26, vr27, vr28, vr29, vr30
+
+    vreplgr2vr.h  vr31,     zero
+
+    vst_x16 t2, 0, 64, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
+
+    inv_dct16_lsx rect2_lsx
+
+    vst_x16 t3, 0, 16, vr22, vr18, vr17, vr28, vr20, vr14, vr15, vr16, \
+            vr27, vr30, vr23, vr21, vr29, vr26, vr25, vr24
+
+    vld_x16 t2, 32, 64, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr19, vr24, vr25, vr26, vr27, vr28, vr29, vr30
+
+    la.local      t0,       idct_coeffs
+
+    vldrepl.w     vr23,      t0,       0        // 2896
+.irp i, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+    vr19, vr24, vr25, vr26, vr27, vr28, vr29, vr30
+    rect2_lsx \i, vr23, \i
+.endr
+
+    vreplgr2vr.h  vr31,     zero
+
+    vst_x16 t2, 32, 64, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
+
+    dct_8x32_core_lsx t1, t3, 0, 128, 16, 0, 48, 16, 32, 64, transpose8x8, 1
+
+    addi.d        t2,       t2,       16
+    addi.d        t1,       t1,       512
+.endr
+
+    addi.d        t2,       sp,       64
+
+.rept 4
+    vld_x16 t2, 0, 64, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr19, vr24, vr25, vr26, vr27, vr28, vr29, vr30
+
+    inv_dct16_lsx no_rect2
+
+.irp i, vr22, vr18, vr17, vr28, vr20, vr14, vr15, vr16, \
+        vr27, vr30, vr23, vr21, vr29, vr26, vr25, vr24
+    vsrari.h      \i,       \i,       4
+.endr
+
+    vst_x16 t2, 0, 64, vr22, vr18, vr17, vr28, vr20, vr14, vr15, vr16, \
+        vr27, vr30, vr23, vr21, vr29, vr26, vr25, vr24
+
+    addi.d        t2,       t2,       16
+.endr
+
+    addi.d        t2,       sp,       64
+
+.rept 8
+    add.d         t0,       a0,       a1
+    vld           vr0,      a0,       0
+    vld           vr1,      a0,       16
+    vld           vr2,      t0,       0
+    vld           vr3,      t0,       16
+    vsllwil.hu.bu vr4,      vr0,      0
+    vsllwil.hu.bu vr5,      vr1,      0
+    vsllwil.hu.bu vr6,      vr2,      0
+    vsllwil.hu.bu vr7,      vr3,      0
+    vexth.hu.bu   vr0,      vr0
+    vexth.hu.bu   vr1,      vr1
+    vexth.hu.bu   vr2,      vr2
+    vexth.hu.bu   vr3,      vr3
+    vld_x8 t2, 0, 16, vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+    vadd.h        vr8,      vr4,      vr8
+    vadd.h        vr9,      vr0,      vr9
+    vadd.h        vr10,     vr5,      vr10
+    vadd.h        vr11,     vr1,      vr11
+    vadd.h        vr12,     vr6,      vr12
+    vadd.h        vr13,     vr2,      vr13
+    vadd.h        vr14,     vr7,      vr14
+    vadd.h        vr15,     vr3,      vr15
+    vssrani.bu.h  vr9,      vr8,      0
+    vssrani.bu.h  vr11,     vr10,     0
+    vssrani.bu.h  vr13,     vr12,     0
+    vssrani.bu.h  vr15,     vr14,     0
+    vst           vr9,      a0,       0
+    vst           vr11,     a0,       16
+    vst           vr13,     t0,       0
+    vst           vr15,     t0,       16
+
+    alsl.d        a0,       a1,       a0,     1
+    addi.d        t2,       t2,       128
+.endr
+
+    free_space 1024+256
+
+.DCT_DCT_32X16_END:
+endfunc
+
 function inv_txfm_add_dct_dct_32x32_8bpc_lsx
     bnez          a3,       .NO_HAS_DCONLY_32x32
 
