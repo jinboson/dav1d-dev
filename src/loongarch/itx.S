@@ -4503,7 +4503,7 @@ endfunc
 .endm
 
 function inv_txfm_add_adst_dct_4x16_8bpc_lsx
-    addi.d        sp,       sp,       -56
+    addi.d        sp,       sp,       -64
     fst.d         f24,      sp,       0
     fst.d         f25,      sp,       8
     fst.d         f26,      sp,       16
@@ -4511,6 +4511,7 @@ function inv_txfm_add_adst_dct_4x16_8bpc_lsx
     fst.d         f28,      sp,       32
     fst.d         f29,      sp,       40
     fst.d         f30,      sp,       48
+    fst.d         f31,      sp,       56
 
     vld_x8 a2, 0, 16, vr0, vr15, vr1, vr16, vr2, vr17, vr3, vr18
 
@@ -4563,7 +4564,8 @@ function inv_txfm_add_adst_dct_4x16_8bpc_lsx
     fld.d         f28,      sp,       32
     fld.d         f29,      sp,       40
     fld.d         f30,      sp,       48
-    addi.d        sp,       sp,       56
+    fld.d         f31,      sp,       56
+    addi.d        sp,       sp,       64
 endfunc
 
 const iadst16_coeffs, align=4
