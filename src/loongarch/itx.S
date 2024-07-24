@@ -7784,11 +7784,20 @@ endfunc
 /*
  * temp: vr8, vr9, vr10, vr12, vr20, vr21, vr22, vr23
  */
-.macro dct_8x8_tx64_core_lsx in0, in1, in2, in3, in4, in5, in6, in7, \
-                             out0, out1, out2, out3, out4, out5, out6, out7
+.macro dct_8x8_tx64_core_lsx in0, in1, in2, in3, in4, in5, in6, in7, out0, \
+                             out1, out2, out3, out4, out5, out6, out7, rect2
 
     // in0 in1 in2 in3
     // dct4 in0 in2
+    la.local      t0,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      t0,       0        // 2896
+.irp i, \in0, \in1, \in2, \in3, \in4, \in5, \in6, \in7
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
+
     la.local      t0,       idct_coeffs
 
     vldrepl.w     vr20,     t0,       8            // 1567
@@ -7872,13 +7881,20 @@ endfunc
  *         out8, out9, out10, out11, out12, out13, out14, out15
  *         vr27, vr30, vr23,  vr21,  vr29,  vr26,  vr25,  vr24
  */
-.macro dct_8x16_tx64_core_lsx
+.macro dct_8x16_tx64_core_lsx rect2
     dct_8x8_tx64_core_lsx vr0, vr2, vr4, vr6, vr19, vr25, vr27, vr29, vr11, \
-                          vr12, vr13, vr14, vr15, vr16, vr17, vr18
+                          vr12, vr13, vr14, vr15, vr16, vr17, vr18, \rect2
 
     // in1 in3 in5 in7 in9  in11 in13 in15
     // vr1 vr3 vr5 vr7 vr24 vr26 vr28 vr30
     la.local      t0,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      t0,       0        // 2896
+.irp i, vr1, vr3, vr5, vr7, vr24, vr26, vr28, vr30
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
 
     vldrepl.w     vr20,     t0,       32           // 401
     vldrepl.w     vr21,     t0,       36           // 4076
@@ -8275,10 +8291,10 @@ endconst
     vstelm.d      vr11,     t2,       0,     1
 .endm // dct64_step5_lsx
 
-.macro dct_8x32_tx64_new_lsx vld_loc0, stride0, vld_loc1, stride1
+.macro dct_8x32_tx64_new_lsx vld_loc0, stride0, vld_loc1, stride1, rect2
     vld_x8 t2, \vld_loc0, \stride0, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7
 
-    dct_8x16_tx64_core_lsx
+    dct_8x16_tx64_core_lsx \rect2
 
     vst_x16 t3, 0, 16, vr22, vr18, vr17, vr28, vr20, vr14, vr15, vr16, \
             vr27, vr30, vr23, vr21, vr29, vr26, vr25, vr24
@@ -8291,6 +8307,13 @@ endconst
     vst_x8 t2, \vld_loc1, \stride1, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
 
     la.local      t0,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      t0,       0        // 2896
+.irp i, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
 
     vldrepl.w     vr20,     t0,       64           // 201
     vldrepl.w     vr21,     t0,       68           // 4091
@@ -8638,7 +8661,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 
     malloc_space  64*32*2+512+512
 
-.macro dct64x64_core1_lsx
+.macro dct64x64_core1_lsx shift, rect2
     //addi.d        t2,       a2,       \in0
     //addi.d        t7,       t7,       \in1
     li.w          t4,       64*32*2+64
@@ -8646,11 +8669,11 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     addi.d        t6,       t3,       512
     add.d         t5,       t6,       zero
 
-    dct_8x32_tx64_new_lsx 0, 256, 128, 256
+    dct_8x32_tx64_new_lsx 0, 256, 128, 256, \rect2
 
     la.local      t0,       idct64_coeffs
 
-    vreplgr2vr.h  vr31,      zero
+    vreplgr2vr.h  vr31,     zero
 
     //addi.d        a4,       a2,       \in2         // 32 ...
     // in1/31/17/15 -> t32a/33/34a/35/60/61a/62/63a
@@ -8658,6 +8681,16 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     vld           vr1,      a4,       128*15       // in31
     vld           vr2,      a4,       128*8        // in17
     vld           vr3,      a4,       128*7        // in15
+
+    la.local      a6,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      a6,       0        // 2896
+.irp i, vr0, vr1, vr2, vr3
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
+
     vst           vr31,     a4,       128*0
     vst           vr31,     a4,       128*15
     vst           vr31,     a4,       128*8
@@ -8671,6 +8704,16 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     vld           vr1,      a4,       128*12       // in25
     vld           vr2,      a4,       128*11       // in23
     vld           vr3,      a4,       128*4        // in9
+
+    la.local      a6,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      a6,       0        // 2896
+.irp i, vr0, vr1, vr2, vr3
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
+
     vst           vr31,     a4,       128*3
     vst           vr31,     a4,       128*12
     vst           vr31,     a4,       128*11
@@ -8684,6 +8727,16 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     vld           vr1,      a4,       128*13       // in27
     vld           vr2,      a4,       128*10       // in21
     vld           vr3,      a4,       128*5        // in11
+
+    la.local      a6,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      a6,      0        // 2896
+.irp i, vr0, vr1, vr2, vr3
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
+
     vst           vr31,     a4,       128*2
     vst           vr31,     a4,       128*13
     vst           vr31,     a4,       128*10
@@ -8697,6 +8750,16 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     vld           vr1,      a4,       128*14       // in29
     vld           vr2,      a4,       128*9        // in19
     vld           vr3,      a4,       128*6        // in13
+
+    la.local      a6,       idct_coeffs
+
+.ifc \rect2, rect2_lsx
+    vldrepl.w     vr23,      a6,       0        // 2896
+.irp i, vr0, vr1, vr2, vr3
+    rect2_lsx \i, vr23, \i
+.endr
+.endif
+
     vst           vr31,     a4,       128*1
     vst           vr31,     a4,       128*14
     vst           vr31,     a4,       128*9
@@ -8726,22 +8789,22 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     li.w          t4,       64*32*2+64+512
     add.d         t5,       t4,       sp
     addi.d        t4,       t5,       16*7
-    dct64_step4_lsx transpose8x8, 2, 0, 128, 112, 128
+    dct64_step4_lsx transpose8x8, \shift, 0, 128, 112, 128
 
     addi.d        t3,       t3,       128
     addi.d        t4,       t4,       -16*8
     addi.d        t5,       t5,       -16*8
-    dct64_step4_lsx transpose8x8, 2, 16, 128, 96, 128
+    dct64_step4_lsx transpose8x8, \shift, 16, 128, 96, 128
 
     addi.d        t5,       t5,       -16*8
     addi.d        t4,       t4,       -16*8
     addi.d        t3,       t3,       128
-    dct64_step4_lsx transpose8x8, 2, 32, 128, 80, 128
+    dct64_step4_lsx transpose8x8, \shift, 32, 128, 80, 128
 
     addi.d        t5,       t5,       -16*8
     addi.d        t4,       t4,       -16*8
     addi.d        t3,       t3,       128
-    dct64_step4_lsx transpose8x8, 2, 48, 128, 64, 128
+    dct64_step4_lsx transpose8x8, \shift, 48, 128, 64, 128
 .endm
 
     la.local      t8,       eob_32x32
@@ -8753,7 +8816,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 .DCT_DCT_EOB_64x64:
     ld.h          a5,       t8,       0
     addi.d        t8,       t8,       2
-    dct64x64_core1_lsx
+    dct64x64_core1_lsx 2, no_rect2
     addi.d        t2,       t2,       16
     addi.d        t7,       t7,       128*8
     addi.d        a4,       a4,       16
@@ -8802,7 +8865,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 
 .DCT_DCT_EOB_64x64_END:
 
-.macro dct64x64_core2_lsx in0, in1
+.macro dct64x64_core2_lsx in0, in1, rect2
     addi.d        t2,       sp,       64+\in0
     addi.d        t7,       sp,       64+\in0
     li.w          t4,       64*32*2+64
@@ -8812,7 +8875,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 
     addi.d        t2,       t2,       1024
     addi.d        t2,       t2,       1024
-    dct_8x32_tx64_new_lsx -2048, 512, 256-2048, 512
+    dct_8x32_tx64_new_lsx -2048, 512, 256-2048, 512, \rect2
 
     la.local      t0,       idct64_coeffs
 
@@ -8960,24 +9023,238 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
     dct64_step5_lsx vr3, vr15, vr31, vr29, vr27, vr25, vr23, vr21
 .endm
 
-    dct64x64_core2_lsx 16*0, 0
+    dct64x64_core2_lsx 16*0, 0, no_rect2
 
-    dct64x64_core2_lsx 16*1, 8
+    dct64x64_core2_lsx 16*1, 8, no_rect2
 
-    dct64x64_core2_lsx 16*2, 8
+    dct64x64_core2_lsx 16*2, 8, no_rect2
 
-    dct64x64_core2_lsx 16*3, 8
+    dct64x64_core2_lsx 16*3, 8, no_rect2
 
-    dct64x64_core2_lsx 16*4, 8
+    dct64x64_core2_lsx 16*4, 8, no_rect2
 
-    dct64x64_core2_lsx 16*5, 8
+    dct64x64_core2_lsx 16*5, 8, no_rect2
 
-    dct64x64_core2_lsx 16*6, 8
+    dct64x64_core2_lsx 16*6, 8, no_rect2
 
-    dct64x64_core2_lsx 16*7, 8
+    dct64x64_core2_lsx 16*7, 8, no_rect2
 
     free_space 64*32*2+512+512
 .DCT_DCT_64X64_END:
+endfunc
+
+function inv_txfm_add_dct_dct_64x32_8bpc_lsx
+    bnez          a3,       .NO_HAS_DCONLY_64x32
+
+    ld.h          t2,       a2,       0
+    vldi          vr0,      0x8b5
+    vreplgr2vr.w  vr1,      t2
+    vldi          vr20,     0x880
+    vmul.w        vr2,      vr0,      vr1
+    st.h          zero,     a2,       0
+    vsrari.w      vr2,      vr2,      8
+    vld           vr3,      a0,       48
+    vmul.w        vr2,      vr2,      vr0
+    vsrari.w      vr2,      vr2,      8
+    vsrari.w      vr2,      vr2,      1
+    vld           vr1,      a0,       16
+    vmadd.w       vr20,     vr2,      vr0
+    vld           vr2,      a0,       32
+    vssrarni.h.w  vr20,     vr20,     12
+    vld           vr0,      a0,       0
+
+    vsllwil.hu.bu vr4,      vr0,      0
+    vsllwil.hu.bu vr5,      vr1,      0
+    vsllwil.hu.bu vr6,      vr2,      0
+    vsllwil.hu.bu vr7,      vr3,      0
+    vexth.hu.bu   vr0,      vr0
+    vexth.hu.bu   vr1,      vr1
+    vexth.hu.bu   vr2,      vr2
+    vexth.hu.bu   vr3,      vr3
+    vadd.h        vr8,      vr4,      vr20
+    vadd.h        vr9,      vr0,      vr20
+    vadd.h        vr10,     vr5,      vr20
+    vadd.h        vr11,     vr1,      vr20
+    vadd.h        vr12,     vr6,      vr20
+    vadd.h        vr13,     vr2,      vr20
+    vadd.h        vr14,     vr7,      vr20
+    vadd.h        vr15,     vr3,      vr20
+    vssrani.bu.h  vr9,      vr8,      0
+    vssrani.bu.h  vr11,     vr10,     0
+    vssrani.bu.h  vr13,     vr12,     0
+    vssrani.bu.h  vr15,     vr14,     0
+    vst           vr9,      a0,       0
+    vst           vr11,     a0,       16
+    vst           vr13,     a0,       32
+    vst           vr15,     a0,       48
+
+.rept 31
+    add.d         a0,       a0,       a1
+    vld           vr0,      a0,       0
+    vld           vr1,      a0,       16
+    vld           vr2,      a0,       32
+    vld           vr3,      a0,       48
+    vsllwil.hu.bu vr4,      vr0,      0
+    vsllwil.hu.bu vr5,      vr1,      0
+    vsllwil.hu.bu vr6,      vr2,      0
+    vsllwil.hu.bu vr7,      vr3,      0
+    vexth.hu.bu   vr0,      vr0
+    vexth.hu.bu   vr1,      vr1
+    vexth.hu.bu   vr2,      vr2
+    vexth.hu.bu   vr3,      vr3
+    vadd.h        vr8,      vr4,      vr20
+    vadd.h        vr9,      vr0,      vr20
+    vadd.h        vr10,     vr5,      vr20
+    vadd.h        vr11,     vr1,      vr20
+    vadd.h        vr12,     vr6,      vr20
+    vadd.h        vr13,     vr2,      vr20
+    vadd.h        vr14,     vr7,      vr20
+    vadd.h        vr15,     vr3,      vr20
+    vssrani.bu.h  vr9,      vr8,      0
+    vssrani.bu.h  vr11,     vr10,     0
+    vssrani.bu.h  vr13,     vr12,     0
+    vssrani.bu.h  vr15,     vr14,     0
+    vst           vr9,      a0,       0
+    vst           vr11,     a0,       16
+    vst           vr13,     a0,       32
+    vst           vr15,     a0,       48
+.endr
+    b             .DCT_DCT_64X32_END
+.NO_HAS_DCONLY_64x32:
+
+    malloc_space  64*32*2+512+512
+
+    la.local      t8,       eob_32x32
+    addi.d        t2,       a2,       0
+    addi.d        t7,       sp,       64
+    addi.d        t7,       t7,       0
+    addi.d        a4,       a2,       64
+
+.DCT_DCT_EOB_64x32:
+
+    ld.h          a5,       t8,       0
+    addi.d        t8,       t8,       2
+    dct64x64_core1_lsx 1, rect2_lsx
+    addi.d        t2,       t2,       16
+    addi.d        t7,       t7,       128*8
+    addi.d        a4,       a4,       16
+    bge           a3,       a5,       .DCT_DCT_EOB_64x32
+
+    la.local      t8,       eob_32x32
+
+    vreplgr2vr.h  vr31,     zero
+
+    ld.h          t7,       t8,       4
+    bge           a3,       t7,       .DCT_DCT_EOB_64x32_END
+
+    li.d          t1,       1024*3+64
+    add.d         t0,       sp,       t1
+
+.rept 4
+    vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+    addi.d t0, t0, 256
+.endr
+
+    ld.h          t7,       t8,       2
+    bge           a3,       t7,       .DCT_DCT_EOB_64x32_END
+
+    li.d          t1,       1024*2+64
+    add.d         t0,       sp,       t1
+
+.rept 4
+    vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
+                       vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+    addi.d        t0,       t0,       256
+.endr
+
+    ld.h          t7,       t8,       0
+    bge           a3,       t7,       .DCT_DCT_EOB_64x32_END
+
+    li.d          t1,       1024*1+64
+    add.d         t0,       sp,       t1
+
+.rept 4
+    vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
+                       vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+    addi.d        t0,       t0,       256
+.endr
+
+.DCT_DCT_EOB_64x32_END:
+
+    addi.d        t2,       sp,       64
+    li.w          t4,       64*32*2+64
+    add.d         t3,       sp,       t4
+    addi.d        t5,       sp,       64
+    addi.d        t5,       t5,       1024
+    addi.d        t5,       t5,       1024
+
+.rept 8
+
+    vld_x8 t2, 0, 256, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7
+
+    addi.d        t4,       t2,       1024
+    addi.d        t4,       t4,       1024
+
+    vld_x8 t4, 0, 256, vr19, vr24, vr25, vr26, vr27, vr28, vr29, vr30
+
+    inv_dct16_lsx no_rect2
+
+    vst_x16 t3, 0, 16, vr22, vr18, vr17, vr28, vr20, vr14, vr15, vr16, \
+            vr27, vr30, vr23, vr21, vr29, vr26, vr25, vr24
+
+    addi.d        t4,       t2,       128
+    vld_x8 t4, 0, 256, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7
+
+    addi.d        t4,       t4,       1024
+    addi.d        t4,       t4,       1024
+
+    vld_x8 t4, 0, 256, vr19, vr24, vr25, vr26, vr27, vr28, vr29, vr30
+
+    dct_8x32_core_lsx t5, t3, 0, 128, 16, -2048, 1024, -1024, 0, 128, , 4
+
+    addi.d        t2,       t2,       16
+    addi.d        t5,       t5,       16
+    addi.d        t1,       t1,       16
+.endr
+
+    addi.d        t2,       sp,       64
+.rept 32
+    vld           vr0,      a0,       0
+    vld           vr1,      a0,       16
+    vld           vr2,      a0,       32
+    vld           vr3,      a0,       48
+    vsllwil.hu.bu vr4,      vr0,      0
+    vsllwil.hu.bu vr5,      vr1,      0
+    vsllwil.hu.bu vr6,      vr2,      0
+    vsllwil.hu.bu vr7,      vr3,      0
+    vexth.hu.bu   vr0,      vr0
+    vexth.hu.bu   vr1,      vr1
+    vexth.hu.bu   vr2,      vr2
+    vexth.hu.bu   vr3,      vr3
+    vld_x8 t2, 0, 16, vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+    vadd.h        vr8,      vr4,      vr8
+    vadd.h        vr9,      vr0,      vr9
+    vadd.h        vr10,     vr5,      vr10
+    vadd.h        vr11,     vr1,      vr11
+    vadd.h        vr12,     vr6,      vr12
+    vadd.h        vr13,     vr2,      vr13
+    vadd.h        vr14,     vr7,      vr14
+    vadd.h        vr15,     vr3,      vr15
+    vssrani.bu.h  vr9,      vr8,      0
+    vssrani.bu.h  vr11,     vr10,     0
+    vssrani.bu.h  vr13,     vr12,     0
+    vssrani.bu.h  vr15,     vr14,     0
+    vst           vr9,      a0,       0
+    vst           vr11,     a0,       16
+    vst           vr13,     a0,       32
+    vst           vr15,     a0,       48
+    add.d         a0,       a0,       a1
+    addi.d        t2,       t2,       128
+.endr
+
+    free_space  64*32*2+512+512
+.DCT_DCT_64X32_END:
 endfunc
 
 function inv_txfm_add_adst_adst_16x16_8bpc_lsx
