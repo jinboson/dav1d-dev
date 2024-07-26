@@ -9467,6 +9467,146 @@ function inv_txfm_add_adst_dct_16x16_8bpc_lsx
     free_space 256+256
 endfunc
 
+function inv_txfm_add_adst_flipadst_16x16_8bpc_lsx
+    malloc_space 256+256
+
+    addi.d        t1,       sp,        64
+    addi.d        t2,       a2,        0
+
+    vld_x16 t2, 0, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx transpose8x8, 2,
+
+    vst_x8 t1, 0, 32, vr14, vr18, vr2, vr5, vr7, vr4, vr8, vr10
+    vst_x8 t1, 16, 32, vr1, vr0, vr19, vr17, vr3, vr9, vr13, vr15
+
+    addi.d        t2,       a2,        16
+
+    vld_x16 t2, 0, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx transpose8x8, 2,
+
+    vst_x8 t1, 256, 32, vr14, vr18, vr2, vr5, vr7, vr4, vr8, vr10
+    vst_x8 t1, 256+16, 32, vr1, vr0, vr19, vr17, vr3, vr9, vr13, vr15
+
+    vreplgr2vr.h  vr23,     zero
+.irp i, 0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, \
+        240, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, \
+        464, 480, 496
+    vst           vr23,     a2,       \i
+.endr
+
+    addi.d        t2,       sp,       64
+    vld_x16 t2, 0, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx , ,
+
+    vst_x16 t2, 0, 32, vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1, \
+            vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14
+
+
+    vld_x16 t2, 16, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx , ,
+
+    vst_x16 t2, 16, 32, vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1, \
+            vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14
+
+    alsl.d        t2,       a1,       a0,    1
+    addi.d        t1,       sp,       64
+.rept 4
+    vld_x8 t1, 0, 16, vr4, vr22, vr5, vr18, vr6, vr17, vr7, vr28
+    VLD_DST_ADD_W16 vr4, vr22, vr5, vr18, vr6, vr17, vr7, vr28, 4
+
+    alsl.d        a0,       a1,       a0,    2
+    alsl.d        t2,       a1,       a0,    1
+    addi.d        t1,       t1,       128
+.endr
+    free_space 256+256
+endfunc
+
+function inv_txfm_add_flipadst_adst_16x16_8bpc_lsx
+    malloc_space 256+256
+
+    addi.d        t1,       sp,        64
+    addi.d        t2,       a2,        0
+
+    vld_x16 t2, 0, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx , 2,
+
+    LSX_TRANSPOSE8x8_H vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14, \
+                       vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14, \
+                       vr6, vr11, vr12, vr16, vr20, vr21, vr22, vr23
+
+    LSX_TRANSPOSE8x8_H vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1, \
+                       vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1, \
+                       vr6, vr11, vr12, vr16, vr20, vr21, vr22, vr23
+
+    vst_x8 t1, 0, 32, vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14
+    vst_x8 t1, 16, 32, vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1
+
+    addi.d        t2,       a2,        16
+
+    vld_x16 t2, 0, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx , 2,
+
+    LSX_TRANSPOSE8x8_H vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14, \
+                       vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14, \
+                       vr6, vr11, vr12, vr16, vr20, vr21, vr22, vr23
+
+    LSX_TRANSPOSE8x8_H vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1, \
+                       vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1, \
+                       vr6, vr11, vr12, vr16, vr20, vr21, vr22, vr23
+
+    vst_x8 t1, 256, 32, vr10, vr8, vr4, vr7, vr5, vr2, vr18, vr14
+    vst_x8 t1, 256+16, 32, vr15, vr13, vr9, vr3, vr17, vr19, vr0, vr1
+
+    vreplgr2vr.h  vr23,     zero
+.irp i, 0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, \
+        240, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, \
+        464, 480, 496
+    vst           vr23,     a2,       \i
+.endr
+
+    addi.d        t2,       sp,       64
+    vld_x16 t2, 0, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx , ,
+
+    vst_x16 t2, 0, 32, vr14, vr18, vr2, vr5, vr7, vr4, vr8, vr10, \
+            vr1, vr0, vr19, vr17, vr3, vr9, vr13, vr15
+
+    vld_x16 t2, 16, 32, vr0, vr1, vr2, vr3, vr4, vr5, vr6, vr7, \
+            vr8, vr9, vr10, vr11, vr12, vr13, vr14, vr15
+
+    inv_adst16_lsx , ,
+
+    vst_x16 t2, 16, 32, vr14, vr18, vr2, vr5, vr7, vr4, vr8, vr10, \
+            vr1, vr0, vr19, vr17, vr3, vr9, vr13, vr15
+
+    alsl.d        t2,       a1,       a0,    1
+    addi.d        t1,       sp,       64
+.rept 4
+    vld_x8 t1, 0, 16, vr4, vr22, vr5, vr18, vr6, vr17, vr7, vr28
+    VLD_DST_ADD_W16 vr22, vr4, vr18, vr5, vr17, vr6, vr28, vr7, 4
+
+    alsl.d        a0,       a1,       a0,    2
+    alsl.d        t2,       a1,       a0,    1
+    addi.d        t1,       t1,       128
+.endr
+
+    free_space 256+256
+endfunc
+
 function inv_txfm_add_dct_adst_16x16_8bpc_lsx
     malloc_space 256+256
 

@@ -161,6 +161,8 @@ decl_itx_fn(BF(dav1d_inv_txfm_add_adst_dct_16x16, lsx));
 decl_itx_fn(BF(dav1d_inv_txfm_add_dct_adst_16x16, lsx));
 decl_itx_fn(BF(dav1d_inv_txfm_add_flipadst_dct_16x16, lsx));
 decl_itx_fn(BF(dav1d_inv_txfm_add_dct_flipadst_16x16, lsx));
+decl_itx_fn(BF(dav1d_inv_txfm_add_adst_flipadst_16x16, lsx));
+decl_itx_fn(BF(dav1d_inv_txfm_add_flipadst_adst_16x16, lsx));
 
 decl_itx_fn(BF(dav1d_inv_txfm_add_dct_dct_8x32, lsx));
 decl_itx_fn(BF(dav1d_inv_txfm_add_identity_identity_8x32, lsx));
@@ -316,6 +318,8 @@ static ALWAYS_INLINE void itx_dsp_init_loongarch(Dav1dInvTxfmDSPContext *const c
     c->itxfm_add[TX_16X16][ADST_DCT] = dav1d_inv_txfm_add_dct_adst_16x16_8bpc_lsx;
     c->itxfm_add[TX_16X16][DCT_FLIPADST] = dav1d_inv_txfm_add_flipadst_dct_16x16_8bpc_lsx;
     c->itxfm_add[TX_16X16][FLIPADST_DCT] = dav1d_inv_txfm_add_dct_flipadst_16x16_8bpc_lsx;
+    c->itxfm_add[TX_16X16][FLIPADST_ADST] = dav1d_inv_txfm_add_adst_flipadst_16x16_8bpc_lsx;
+    c->itxfm_add[TX_16X16][ADST_FLIPADST] = dav1d_inv_txfm_add_flipadst_adst_16x16_8bpc_lsx;
 
     c->itxfm_add[RTX_8X32][DCT_DCT] = dav1d_inv_txfm_add_dct_dct_8x32_8bpc_lsx;
     c->itxfm_add[RTX_8X32][IDTX] = dav1d_inv_txfm_add_identity_identity_8x32_8bpc_lsx;
