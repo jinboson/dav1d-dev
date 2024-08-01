@@ -31,6 +31,7 @@
 #include "src/cpu.h"
 #include "src/refmvs.h"
 
+decl_load_tmvs_fn(dav1d_load_tmvs_lsx);
 decl_splat_mv_fn(dav1d_splat_mv_lsx);
 decl_save_tmvs_fn(dav1d_save_tmvs_lsx);
 
@@ -41,6 +42,7 @@ static ALWAYS_INLINE void refmvs_dsp_init_loongarch(Dav1dRefmvsDSPContext *const
 
     c->splat_mv = dav1d_splat_mv_lsx;
     c->save_tmvs = dav1d_save_tmvs_lsx;
+    c->load_tmvs = dav1d_load_tmvs_lsx;
 }
 
 #endif /* DAV1D_SRC_LOONGARCH_REFMVS_H */
