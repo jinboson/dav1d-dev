@@ -65,6 +65,8 @@ decl_itx_fn(BF(dav1d_inv_txfm_add_dct_dct_64x32, lsx));
 
 decl_itx_fn(BF(dav1d_inv_txfm_add_dct_dct_64x64, lsx));
 
+decl_itx_fn(BF(dav1d_inv_txfm_add_adst_adst_16x16, lasx));
+
 static ALWAYS_INLINE void itx_dsp_init_loongarch(Dav1dInvTxfmDSPContext *const c, int bpc) {
 #if BITDEPTH == 8
     const unsigned flags = dav1d_get_cpu_flags();
@@ -73,7 +75,7 @@ static ALWAYS_INLINE void itx_dsp_init_loongarch(Dav1dInvTxfmDSPContext *const c
 
     if (BITDEPTH != 8 ) return;
 
-    assign_itx16_fn( ,  4,  4, lsx);
+    assign_itx17_fn( ,  4,  4, lsx);
     assign_itx16_fn(R,  4,  8, lsx);
     assign_itx16_fn(R,  4, 16, lsx);
     assign_itx16_fn(R,  8,  4, lsx);
@@ -104,6 +106,13 @@ static ALWAYS_INLINE void itx_dsp_init_loongarch(Dav1dInvTxfmDSPContext *const c
     c->itxfm_add[RTX_32X16][DCT_DCT] = dav1d_inv_txfm_add_dct_dct_32x16_8bpc_lsx;
 
     c->itxfm_add[TX_32X32][DCT_DCT] = dav1d_inv_txfm_add_dct_dct_32x32_8bpc_lsx;
+
+    if (!(flags & DAV1D_LOONGARCH_CPU_FLAG_LASX)) return;
+
+    if (BITDEPTH != 8 ) return;
+
+    c->itxfm_add[TX_16X16][ADST_ADST] = dav1d_inv_txfm_add_adst_adst_16x16_8bpc_lasx;
+
 #endif
 }
 

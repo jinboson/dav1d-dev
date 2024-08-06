@@ -11615,3 +11615,526 @@ function inv_txfm_add_dct_dct_16x32_8bpc_lsx
 .DCT_DCT_16x32_END:
 
 endfunc
+
+const iadst16_coeffs_lasx, align=4
+    .short         4091, 201, 3973, 995
+    .short         3703, 1751, 3290, 2440
+    .short         2751, 3035, 2106, 3513
+    .short         1380, 3857, 601, 4052
+endconst
+
+const idct_coeffs_lasx, align=4
+    .short         2896, 2896*8, 1567, 3784
+    .short         799, 4017, 3406, 2276
+    .short         401, 4076, 3166, 2598
+    .short         1931, 3612, 3920, 1189
+    .short         201, 4091, 3035, 2751
+    .short         1751, 3703, 3857, 1380
+    .short         995, 3973, 3513, 2106
+    .short         2440, 3290, 4052, 601
+endconst
+
+.macro xvmulev_xvmaddod_lasx in0, in1, in2, in3, out0, out1
+    xvmulwev.w.h   \out0,    \in0,     \in2
+    xvmulwod.w.h   \out1,    \in0,     \in2
+    xvmaddwev.w.h  \out0,    \in1,     \in3
+    xvmaddwod.w.h  \out1,    \in1,     \in3
+.endm
+
+.macro xvld_x8 src, start, stride, in0, in1, in2, in3, in4, in5, in6, in7
+    xvld           \in0,     \src,     \start
+    xvld           \in1,     \src,     \start+(\stride)
+    xvld           \in2,     \src,     \start+(\stride<<1)
+    xvld           \in3,     \src,     \start+(\stride<<1)+(\stride)
+    xvld           \in4,     \src,     \start+(\stride<<2)
+    xvld           \in5,     \src,     \start+(\stride<<2)+(\stride)
+    xvld           \in6,     \src,     \start+(\stride*6)
+    xvld           \in7,     \src,     \start+(\stride<<3)-(\stride)
+.endm
+
+.macro xvst_x8 src, start, stride, in0, in1, in2, in3, in4, in5, in6, in7
+    xvst           \in0,     \src,     \start
+    xvst           \in1,     \src,     \start+(\stride)
+    xvst           \in2,     \src,     \start+(\stride<<1)
+    xvst           \in3,     \src,     \start+(\stride<<1)+(\stride)
+    xvst           \in4,     \src,     \start+(\stride<<2)
+    xvst           \in5,     \src,     \start+(\stride<<2)+(\stride)
+    xvst           \in6,     \src,     \start+(\stride*6)
+    xvst           \in7,     \src,     \start+(\stride<<3)-(\stride)
+.endm
+
+.macro xvld_x16 src, start, stride, in0, in1, in2, in3, in4, in5, in6, in7, \
+                in8, in9, in10, in11, in12, in13, in14, in15
+
+    xvld_x8 \src, \start, \stride, \in0, \in1, \in2, \in3, \in4, \in5, \in6, \in7
+
+    xvld           \in8,     \src,     \start+(\stride<<3)
+    xvld           \in9,     \src,     \start+(\stride<<3)+(\stride)
+    xvld           \in10,    \src,     \start+(\stride*10)
+    xvld           \in11,    \src,     \start+(\stride*11)
+    xvld           \in12,    \src,     \start+(\stride*12)
+    xvld           \in13,    \src,     \start+(\stride*13)
+    xvld           \in14,    \src,     \start+(\stride*14)
+    xvld           \in15,    \src,     \start+(\stride<<4)-(\stride)
+.endm
+
+.macro xvst_x16 src, start, stride, in0, in1, in2, in3, in4, in5, in6, in7, \
+               in8, in9, in10, in11, in12, in13, in14, in15
+
+    xvst_x8 \src, \start, \stride, \in0, \in1, \in2, \in3, \in4, \in5, \in6, \in7
+
+    xvst           \in8,     \src,     \start+(\stride<<3)
+    xvst           \in9,     \src,     \start+(\stride<<3)+(\stride)
+    xvst           \in10,    \src,     \start+(\stride*10)
+    xvst           \in11,    \src,     \start+(\stride*11)
+    xvst           \in12,    \src,     \start+(\stride*12)
+    xvst           \in13,    \src,     \start+(\stride*13)
+    xvst           \in14,    \src,     \start+(\stride*14)
+    xvst           \in15,    \src,     \start+(\stride<<4)-(\stride)
+.endm
+
+.macro inv_adst16_lasx
+    la.local      t0,       iadst16_coeffs_lasx
+
+    xvldrepl.h    xr20,     t0,       0        // 4091
+    xvldrepl.h    xr21,     t0,       2        // 201
+    xvmulev_xvmaddod_lasx xr15, xr0, xr20, xr21, xr16, xr18
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr15, xr0, xr21, xr20, xr17, xr19
+    xvilvl.w      xr15,     xr18,     xr16
+    xvilvl.w      xr0,      xr19,     xr17
+    xvilvh.w      xr18,     xr18,     xr16
+    xvilvh.w      xr19,     xr19,     xr17
+    xvssrarni.h.w xr18,     xr15,     12       // t0
+    xvssrarni.h.w xr19,     xr0,      12       // t1
+
+    xvldrepl.h    xr20,     t0,       4        // 3973
+    xvldrepl.h    xr21,     t0,       6        // 995
+    xvmulev_xvmaddod_lasx xr13, xr2, xr20, xr21, xr16, xr0
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr13, xr2, xr21, xr20, xr17, xr15
+    xvilvl.w      xr13,     xr0,      xr16
+    xvilvl.w      xr2,      xr15,     xr17
+    xvilvh.w      xr0,      xr0,      xr16
+    xvilvh.w      xr15,     xr15,     xr17
+    xvssrarni.h.w xr0,      xr13,     12       // t2
+    xvssrarni.h.w xr15,     xr2,      12       // t3
+
+    xvldrepl.h    xr20,     t0,        8       // 3703
+    xvldrepl.h    xr21,     t0,        10      // 1751
+    xvmulev_xvmaddod_lasx xr11, xr4, xr20, xr21, xr16, xr2
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr11, xr4, xr21, xr20, xr17, xr13
+    xvilvl.w      xr11,     xr2,       xr16
+    xvilvl.w      xr4,      xr13,      xr17
+    xvilvh.w      xr2,      xr2,       xr16
+    xvilvh.w      xr13,     xr13,      xr17
+    xvssrarni.h.w xr2,      xr11,      12       // t4
+    xvssrarni.h.w xr13,     xr4,       12       // t5
+
+    xvldrepl.h    xr20,     t0,        12       // 3290 -> 1645
+    xvldrepl.h    xr21,     t0,        14       // 2440 -> 1220
+    xvmulev_xvmaddod_lasx xr9, xr6, xr20, xr21, xr16, xr4
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr9, xr6, xr21, xr20, xr17, xr11
+    xvilvl.w      xr9,      xr4,       xr16
+    xvilvl.w      xr6,      xr11,      xr17
+    xvilvh.w      xr4,      xr4,       xr16
+    xvilvh.w      xr11,     xr11,      xr17
+    xvssrarni.h.w xr4,      xr9,       12       // t6
+    xvssrarni.h.w xr11,     xr6,       12       // t7
+
+    xvldrepl.h    xr20,     t0,        16       // 2751
+    xvldrepl.h    xr21,     t0,        18       // 3035
+    xvmulev_xvmaddod_lasx xr7, xr8, xr20, xr21, xr16, xr6
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr7, xr8, xr21, xr20, xr17, xr9
+    xvilvl.w      xr7,      xr6,       xr16
+    xvilvl.w      xr8,      xr9,       xr17
+    xvilvh.w      xr6,      xr6,       xr16
+    xvilvh.w      xr9,      xr9,       xr17
+    xvssrarni.h.w xr6,      xr7,       12       // t8
+    xvssrarni.h.w xr9,      xr8,       12       // t9
+
+    xvldrepl.h    xr20,     t0,        20       // 2106
+    xvldrepl.h    xr21,     t0,        22       // 3513
+    xvmulev_xvmaddod_lasx xr5, xr10, xr20, xr21, xr16, xr7
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr5, xr10, xr21, xr20, xr17, xr8
+    xvilvl.w      xr5,      xr7,       xr16
+    xvilvl.w      xr10,     xr8,       xr17
+    xvilvh.w      xr7,      xr7,       xr16
+    xvilvh.w      xr8,      xr8,       xr17
+    xvssrarni.h.w xr7,      xr5,       12       // t10
+    xvssrarni.h.w xr8,      xr10,      12       // t11
+
+    xvldrepl.h    xr20,     t0,        24       // 1380
+    xvldrepl.h    xr21,     t0,        26       // 3857
+    xvmulev_xvmaddod_lasx xr3, xr12, xr20, xr21, xr16, xr5
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr3, xr12, xr21, xr20, xr17, xr10
+    xvilvl.w      xr3,      xr5,       xr16
+    xvilvl.w      xr12,     xr10,      xr17
+    xvilvh.w      xr5,      xr5,       xr16
+    xvilvh.w      xr10,     xr10,      xr17
+    xvssrarni.h.w xr5,      xr3,       12       // t12
+    xvssrarni.h.w xr10,     xr12,      12       // t13
+
+    xvldrepl.h    xr20,     t0,        28       // 601
+    xvldrepl.h    xr21,     t0,        30       // 4052
+    xvmulev_xvmaddod_lasx xr1, xr14, xr20, xr21, xr16, xr3
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr1, xr14, xr21, xr20, xr17, xr12
+    xvilvl.w      xr1,      xr3,       xr16
+    xvilvl.w      xr14,     xr12,      xr17
+    xvilvh.w      xr3,      xr3,       xr16
+    xvilvh.w      xr12,     xr12,      xr17
+    xvssrarni.h.w xr3,      xr1,       12       // t14
+    xvssrarni.h.w xr12,     xr14,      12       // t15
+
+    xvsadd.h      xr1,      xr18,      xr6      // t0a
+    xvssub.h      xr14,     xr18,      xr6      // t8a
+    xvsadd.h      xr16,     xr19,      xr9      // t1a
+    xvssub.h      xr17,     xr19,      xr9      // t9a
+    xvsadd.h      xr6,      xr0,       xr7      // t2a
+    xvssub.h      xr18,     xr0,       xr7      // t10a
+    xvsadd.h      xr9,      xr15,      xr8      // t3a
+    xvssub.h      xr19,     xr15,      xr8      // t11a
+    xvsadd.h      xr0,      xr2,       xr5      // t4a
+    xvssub.h      xr7,      xr2,       xr5      // t12a
+    xvsadd.h      xr8,      xr13,      xr10     // t5a
+    xvssub.h      xr15,     xr13,      xr10     // t13a
+    xvsadd.h      xr2,      xr4,       xr3      // t6a
+    xvssub.h      xr5,      xr4,       xr3      // t14a
+    xvsadd.h      xr10,     xr11,      xr12     // t7a
+    xvssub.h      xr13,     xr11,      xr12     // t15a
+
+    la.local      t0,       idct_coeffs_lasx
+
+    xvldrepl.h    xr20,     t0,        8        // 799
+    xvldrepl.h    xr21,     t0,        10       // 4017
+    xvmulev_xvmaddod_lasx xr14, xr17, xr21, xr20, xr3, xr11
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr14, xr17, xr20, xr21, xr4, xr12
+    xvilvl.w      xr14,     xr11,      xr3
+    xvilvl.w      xr17,     xr12,      xr4
+    xvilvh.w      xr11,     xr11,      xr3
+    xvilvh.w      xr12,     xr12,      xr4
+    xvssrarni.h.w xr11,     xr14,      12       // t8
+    xvssrarni.h.w xr12,     xr17,      12       // t9
+
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr15, xr7, xr20, xr21, xr3, xr14
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr15, xr7, xr21, xr20, xr4, xr17
+    xvilvl.w      xr15,     xr14,      xr3
+    xvilvl.w      xr7,      xr17,      xr4
+    xvilvh.w      xr14,     xr14,      xr3
+    xvilvh.w      xr17,     xr17,      xr4
+    xvssrarni.h.w xr14,     xr15,      12       // t13
+    xvssrarni.h.w xr17,     xr7,       12       // t12
+
+    xvldrepl.h    xr20,     t0,        12       // 3406
+    xvldrepl.h    xr21,     t0,        14       // 2276
+    xvmulev_xvmaddod_lasx xr18, xr19, xr21, xr20, xr3, xr7
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr18, xr19, xr20, xr21, xr4, xr15
+    xvilvl.w      xr18,     xr7,       xr3
+    xvilvl.w      xr19,     xr15,      xr4
+    xvilvh.w      xr7,      xr7,       xr3
+    xvilvh.w      xr15,     xr15,      xr4
+    xvssrarni.h.w xr7,      xr18,      12       // t10
+    xvssrarni.h.w xr15,     xr19,      12       // t11
+
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr13, xr5, xr20, xr21, xr3, xr18
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr13, xr5, xr21, xr20, xr4, xr19
+    xvilvl.w      xr13,     xr18,      xr3
+    xvilvl.w      xr5,      xr19,      xr4
+    xvilvh.w      xr18,     xr18,      xr3
+    xvilvh.w      xr19,     xr19,      xr4
+    xvssrarni.h.w xr18,     xr13,      12       // t15
+    xvssrarni.h.w xr19,     xr5,       12       // t14
+
+    xvsadd.h      xr5,      xr1,       xr0      // t0
+    xvssub.h      xr13,     xr1,       xr0      // t4
+    xvsadd.h      xr3,      xr16,      xr8      // t1
+    xvssub.h      xr4,      xr16,      xr8      // t5
+    xvsadd.h      xr0,      xr6,       xr2      // t2
+    xvssub.h      xr1,      xr6,       xr2      // t6
+    xvsadd.h      xr8,      xr9,       xr10     // t3
+    xvssub.h      xr16,     xr9,       xr10     // t7
+    xvsadd.h      xr2,      xr11,      xr17     // t8a
+    xvssub.h      xr6,      xr11,      xr17     // t12a
+    xvsadd.h      xr9,      xr12,      xr14     // t9a
+    xvssub.h      xr10,     xr12,      xr14     // t13a
+    xvsadd.h      xr11,     xr7,       xr19     // t10a
+    xvssub.h      xr17,     xr7,       xr19     // t14a
+    xvsadd.h      xr12,     xr15,      xr18     // t11a
+    xvssub.h      xr14,     xr15,      xr18     // t15a
+
+    la.local      t0,       idct_coeffs_lasx
+
+    xvldrepl.h    xr20,     t0,        4        // 1567
+    xvldrepl.h    xr21,     t0,        6        // 3784
+    xvmulev_xvmaddod_lasx xr13, xr4, xr21, xr20, xr7, xr18
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr13, xr4, xr20, xr21, xr15, xr19
+    xvilvl.w      xr13,     xr18,      xr7
+    xvilvl.w      xr4,      xr19,      xr15
+    xvilvh.w      xr18,     xr18,      xr7
+    xvilvh.w      xr19,     xr19,      xr15
+    xvssrarni.h.w xr18,     xr13,      12       // t4a
+    xvssrarni.h.w xr19,     xr4,       12       // t5a
+
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr16, xr1, xr20, xr21, xr7, xr4
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr16, xr1, xr21, xr20, xr15, xr13
+    xvilvl.w      xr16,     xr4,       xr7
+    xvilvl.w      xr1,      xr13,      xr15
+    xvilvh.w      xr4,      xr4,       xr7
+    xvilvh.w      xr13,     xr13,      xr15
+    xvssrarni.h.w xr4,      xr16,      12       // t7a
+    xvssrarni.h.w xr13,     xr1,       12       // t6a
+
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr6, xr10, xr21, xr20, xr7, xr1
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr6, xr10, xr20, xr21, xr15, xr16
+    xvilvl.w      xr6,      xr1,       xr7
+    xvilvl.w      xr10,     xr16,      xr15
+    xvilvh.w      xr1,      xr1,       xr7
+    xvilvh.w      xr16,     xr16,      xr15
+    xvssrarni.h.w xr1,      xr6,       12       // t12
+    xvssrarni.h.w xr16,     xr10,      12       // t13
+
+    xvneg.h       xr21,     xr21
+    xvmulev_xvmaddod_lasx xr14, xr17, xr20, xr21, xr7, xr6
+    xvneg.h       xr20,     xr20
+    xvmulev_xvmaddod_lasx xr14, xr17, xr21, xr20, xr15, xr10
+    xvilvl.w      xr14,     xr6,       xr7
+    xvilvl.w      xr17,     xr10,      xr15
+    xvilvh.w      xr6,      xr6,       xr7
+    xvilvh.w      xr10,     xr10,      xr15
+    xvssrarni.h.w xr6,      xr14,      12       // t15
+    xvssrarni.h.w xr10,     xr17,      12       // t14
+
+    xvsadd.h       xr14,     xr5,       xr0      // out[0]
+    xvssub.h       xr17,     xr5,       xr0      // t2a
+    xvssub.h       xr7,      xr3,       xr8      // t3a
+    xvsadd.h       xr15,     xr3,       xr8      // out[15]
+    xvsllwil.w.h   xr22,     xr15,      0
+    xvexth.w.h     xr15,     xr15
+    xvneg.w        xr22,     xr22
+    xvneg.w        xr15,     xr15
+    xvssrarni.h.w  xr15,     xr22,      0        // out[15]
+    xvssub.h       xr7,      xr3,       xr8      // t3a
+
+    xvsadd.h       xr3,      xr19,      xr4      // out[12]
+    xvssub.h       xr8,      xr19,      xr4      // t7
+    xvssub.h       xr0,      xr18,      xr13     // t6
+    xvsadd.h       xr5,      xr18,      xr13     // out[3]
+    xvsllwil.w.h   xr22,     xr5,       0
+    xvexth.w.h     xr5,      xr5
+    xvneg.w        xr22,     xr22
+    xvneg.w        xr5,      xr5
+    xvssrarni.h.w  xr5,      xr22,      0        // out[3]
+
+    xvsadd.h       xr13,     xr9,       xr12     // out[14]
+    xvssub.h       xr19,     xr9,       xr12     // t11
+    xvssub.h       xr4,      xr2,       xr11     // t10
+    xvsadd.h       xr18,     xr2,       xr11     // out[1]
+    xvsllwil.w.h   xr22,     xr18,      0
+    xvexth.w.h     xr18,     xr18
+    xvneg.w        xr22,     xr22
+    xvneg.w        xr18,     xr18
+    xvssrarni.h.w  xr18,     xr22,      0        // out[1]
+
+    xvsadd.h       xr2,      xr1,       xr10     // out[2]
+    xvssub.h       xr11,     xr1,       xr10     // t14a
+    xvssub.h       xr12,     xr16,      xr6      // t15a
+    xvsadd.h       xr9,      xr16,      xr6      // out[13]
+    xvsllwil.w.h   xr22,     xr9,       0
+    xvexth.w.h     xr9,      xr9
+    xvneg.w        xr22,     xr22
+    xvneg.w        xr9,      xr9
+    xvssrarni.h.w  xr9,      xr22,      0        // out[13]
+
+    xvldrepl.h     xr20,     t0,        0        // 2896
+    xvmulev_xvmaddod_lasx xr17, xr7, xr20, xr20, xr6, xr10
+    xvneg.h        xr21,     xr20
+    xvmulev_xvmaddod_lasx xr17, xr7, xr20, xr21, xr16, xr1
+    xvilvl.w       xr17,     xr10,      xr6
+    xvilvl.w       xr7,      xr1,       xr16
+    xvilvh.w       xr10,     xr10,      xr6
+    xvilvh.w       xr1,      xr1,       xr16
+    xvssrarni.h.w  xr10,     xr17,      12       // out[7]
+    xvssrarni.h.w  xr1,      xr7,       12       // out[8]
+    xvneg.h        xr10,     xr10
+
+    xvmulev_xvmaddod_lasx xr0, xr8, xr20, xr21, xr16, xr17
+    xvmulev_xvmaddod_lasx xr0, xr8, xr20, xr20, xr6, xr7
+    xvilvl.w       xr0,      xr17,      xr16
+    xvilvl.w       xr8,      xr7,       xr6
+    xvilvh.w       xr17,     xr17,      xr16
+    xvilvh.w       xr7,      xr7,       xr6
+    xvssrarni.h.w  xr17,     xr0,       12       // out[11]
+    xvssrarni.h.w  xr7,      xr8,       12       // out[4]
+    xvneg.h        xr17,     xr17
+
+    xvmulev_xvmaddod_lasx xr4, xr19, xr20, xr21, xr16, xr0
+    xvmulev_xvmaddod_lasx xr4, xr19, xr20, xr20, xr6, xr8
+    xvilvl.w       xr4,      xr0,       xr16
+    xvilvl.w       xr19,     xr8,       xr6
+    xvilvh.w       xr0,      xr0,       xr16
+    xvilvh.w       xr8,      xr8,       xr6
+    xvssrarni.h.w  xr0,      xr4,       12       // out[9]
+    xvssrarni.h.w  xr8,      xr19,      12       // out[6]
+    xvneg.h        xr0,      xr0
+
+    xvmulev_xvmaddod_lasx xr11, xr12, xr20, xr20, xr6, xr4
+    xvmulev_xvmaddod_lasx xr11, xr12, xr20, xr21, xr16, xr19
+    xvilvl.w       xr11,     xr4,       xr6
+    xvilvl.w       xr12,     xr19,      xr16
+    xvilvh.w       xr4,      xr4,       xr6
+    xvilvh.w       xr19,     xr19,      xr16
+    xvssrarni.h.w  xr4,      xr11,      12       // out[5]
+    xvssrarni.h.w  xr19,     xr12,      12       // out[10]
+    xvneg.h        xr4,      xr4
+.endm
+
+.macro xvsrari_h_x16 in0, in1, in2, in3, in4, in5, in6, in7, in8, in9, in10, \
+                     in11, in12, in13, in14, in15, out0, out1, out2, out3, \
+                     out4, out5, out6, out7, out8, out9, out10, out11, out12, \
+                     out13, out14, out15, shift
+    xvsrari.h  \out0,       \in0,     \shift
+    xvsrari.h  \out1,       \in1,     \shift
+    xvsrari.h  \out2,       \in2,     \shift
+    xvsrari.h  \out3,       \in3,     \shift
+    xvsrari.h  \out4,       \in4,     \shift
+    xvsrari.h  \out5,       \in5,     \shift
+    xvsrari.h  \out6,       \in6,     \shift
+    xvsrari.h  \out7,       \in7,     \shift
+    xvsrari.h  \out8,       \in8,     \shift
+    xvsrari.h  \out9,       \in9,     \shift
+    xvsrari.h  \out10,      \in10,    \shift
+    xvsrari.h  \out11,      \in11,    \shift
+    xvsrari.h  \out12,      \in12,    \shift
+    xvsrari.h  \out13,      \in13,    \shift
+    xvsrari.h  \out14,      \in14,    \shift
+    xvsrari.h  \out15,      \in15,    \shift
+.endm
+
+.macro xvpermi_q_x2 in0, in1, in2, in3, out0, out1, out2, out3, tmp0, tmp1
+    xvor.v      \tmp0,      \in0,     \in0
+    xvor.v      \tmp1,      \in1,     \in1
+    xvpermi.q   \out0,      \in2,     0x02
+    xvpermi.q   \out1,      \in3,     0x02
+    xvpermi.q   \out2,      \tmp0,    0x31
+    xvpermi.q   \out3,      \tmp1,    0x31
+.endm
+
+.macro DST_ADD_W16_LASX in0, in1, in2, in3, in4, in5, in6, in7
+    vext2xv.hu.bu xr0,      \in0
+    vext2xv.hu.bu xr1,      \in1
+    vext2xv.hu.bu xr2,      \in2
+    vext2xv.hu.bu xr3,      \in3
+    xvadd.h       xr0,      xr0,      \in4
+    xvadd.h       xr1,      xr1,      \in5
+    xvadd.h       xr2,      xr2,      \in6
+    xvadd.h       xr3,      xr3,      \in7
+    xvssrani.bu.h xr1,      xr0,      0
+    xvssrani.bu.h xr3,      xr2,      0
+    xvpermi.d     xr0,      xr1,      0b11011000
+    xvpermi.d     xr2,      xr3,      0b11011000
+    xvpermi.d     xr1,      xr0,      0b00001110
+    xvpermi.d     xr3,      xr2,      0b00001110
+    vst           vr0,      a0,       0
+    vstx          vr1,      a0,       a1
+    vst           vr2,      t2,       0
+    vstx          vr3,      t2,       a1
+.endm
+
+.macro XVLD_DST_ADD_W16 in0, in1, in2, in3
+
+    vld           vr0,      a0,       0
+    vldx          vr1,      a0,       a1
+    vld           vr2,      t2,       0
+    vldx          vr3,      t2,       a1
+    DST_ADD_W16_LASX xr0, xr1, xr2, xr3, \in0, \in1, \in2, \in3
+.endm
+
+function inv_txfm_add_adst_adst_16x16_8bpc_lasx
+    addi.d        sp,       sp,       -64
+    fst.d         f24,      sp,       0
+    fst.d         f25,      sp,       8
+    fst.d         f26,      sp,       16
+    fst.d         f27,      sp,       24
+    fst.d         f28,      sp,       32
+    fst.d         f29,      sp,       40
+    fst.d         f30,      sp,       48
+    fst.d         f31,      sp,       56
+
+    xvld_x16 a2, 0, 32, xr0, xr1, xr2, xr3, xr4, xr5, xr6, xr7, \
+             xr8, xr9, xr10, xr11, xr12, xr13, xr14, xr15
+
+    inv_adst16_lasx
+
+    LASX_TRANSPOSE8x8_H xr14, xr18, xr2, xr5, xr7, xr4, xr8, xr10, \
+                        xr14, xr18, xr2, xr5, xr7, xr28, xr6, xr10, \
+                        xr20, xr21, xr22, xr23, xr24, xr25, xr26, xr27
+
+    LASX_TRANSPOSE8x8_H xr1,  xr0,  xr19, xr17, xr3, xr9, xr13, xr15, \
+                        xr29, xr30, xr11, xr17, xr31, xr19, xr16, xr15, \
+                        xr20, xr21, xr22, xr23, xr24, xr25, xr26, xr27
+
+    xvsrari_h_x16 xr14, xr18, xr2, xr5, xr7, xr28, xr6, xr10, \
+                  xr29, xr30, xr11, xr17, xr31, xr19, xr16, xr15, \
+                  xr0, xr1, xr2, xr3, xr4, xr5, xr6, xr7, \
+                  xr8, xr9, xr10, xr11, xr12, xr13, xr14, xr15, 2
+
+    xvpermi_q_x2 xr0, xr1, xr8, xr9, xr0, xr1, xr8, xr9, xr20, xr21
+    xvpermi_q_x2 xr2, xr3, xr10, xr11, xr2, xr3, xr10, xr11, xr20, xr21
+    xvpermi_q_x2 xr4, xr5, xr12, xr13, xr4, xr5, xr12, xr13, xr20, xr21
+    xvpermi_q_x2 xr6, xr7, xr14, xr15, xr6, xr7, xr14, xr15, xr20, xr21
+
+    inv_adst16_lasx
+
+    xvsrari_h_x16 xr14, xr18, xr2,  xr5,  xr7,  xr4, xr8,  xr10, \
+                  xr1,  xr0,  xr19, xr17, xr3,  xr9, xr13, xr15, \
+                  xr14, xr18, xr11, xr5,  xr7,  xr4, xr8,  xr10, \
+                  xr12, xr16, xr19, xr17, xr20, xr9, xr13, xr15, 4
+
+    xvxor.v       xr23,     xr23,     xr23
+.irp i, 0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480
+    xvst          xr23,     a2,       \i
+.endr
+
+    alsl.d        t2,       a1,       a0,    1
+
+    XVLD_DST_ADD_W16 xr14, xr18, xr11, xr5
+    alsl.d        a0,       a1,       a0,    2
+    alsl.d        t2,       a1,       a0,    1
+
+    XVLD_DST_ADD_W16 xr7, xr4, xr8, xr10
+    alsl.d        a0,       a1,       a0,    2
+    alsl.d        t2,       a1,       a0,    1
+
+    XVLD_DST_ADD_W16 xr12, xr16, xr19, xr17
+    alsl.d        a0,       a1,       a0,    2
+    alsl.d        t2,       a1,       a0,    1
+
+    XVLD_DST_ADD_W16 xr20, xr9, xr13, xr15
+
+    fld.d         f24,      sp,       0
+    fld.d         f25,      sp,       8
+    fld.d         f26,      sp,       16
+    fld.d         f27,      sp,       24
+    fld.d         f28,      sp,       32
+    fld.d         f29,      sp,       40
+    fld.d         f30,      sp,       48
+    fld.d         f31,      sp,       56
+    addi.d        sp,       sp,       64
+endfunc
