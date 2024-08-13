@@ -979,9 +979,6 @@ function cdef_find_dir_8bpc_lsx
 endfunc
 
 .macro cdef_fill tmp, stride, w, h
-    li.w          t0,     -32768
-    vreplgr2vr.h  vr18,   t0
-
     beqz          \h,     700f         //h
     or            t0,     zero,  zero  //y
 100:
@@ -1032,23 +1029,23 @@ const dav1d_cdef_directions
 .byte   0 * 12 + 1, -1 * 12 + 2
 endconst
 
-.macro constrain_vr in0, in1, in2, tmp0, tmp1, out
-    vabsd.w        \tmp0, \in0,  vr23   //adiff
-    vsra.w         \tmp1, \tmp0, \in2
-    vsub.w         \tmp1, \in1,  \tmp1
-    vmax.w         \tmp1, vr23,  \tmp1  //imax
-    vmin.w         \tmp0, \tmp0, \tmp1  //imin
+.macro constrain_vrh in0, in1, in2, tmp0, tmp1, out
+    vabsd.h        \tmp0, \in0,  vr23   //adiff
+    vsra.h         \tmp1, \tmp0, \in2
+    vsub.h         \tmp1, \in1,  \tmp1
+    vmax.h         \tmp1, vr23,  \tmp1  //imax
+    vmin.h         \tmp0, \tmp0, \tmp1  //imin
 
     //apply_sign
-    vslt.w         \tmp1, \in0,  vr23
+    vslt.h         \tmp1, \in0,  vr23
     vandn.v        \in0,  \tmp1, \tmp0
-    vsigncov.w     \tmp0, \tmp1, \tmp0
-    vor.v          \out,  \in0,   \tmp0
+    vsigncov.h     \tmp0, \tmp1, \tmp0
+    vor.v          \out,  \in0,  \tmp0
 .endm
 
-.macro iclip_vr in0, in1, in2, tmp0, tmp1, out
-    vmin.w         \tmp0, \in2,  \in0
-    vslt.w         \in0,  \in0,  \in1
+.macro iclip_vrh in0, in1, in2, tmp0, tmp1, out
+    vmin.h         \tmp0, \in2,  \in0
+    vslt.h         \in0,  \in0,  \in1
     vand.v         \tmp1, \in0,  \in1
     vandn.v        \tmp0, \in0,  \tmp0
     vor.v          \out,  \tmp1, \tmp0
@@ -1090,21 +1087,12 @@ endconst
 7:  // &2
     sub.d         t1,     t6,    t5
     andi          t1,     t1,    2
-    beqz          t1,     8f
-
-    ldx.bu        t1,     a3,    t4
-    stx.h         t1,     t2,    t0
-    addi.d        t0,     t0,    2
-    addi.d        t4,     t4,    1
-    ldx.bu        t1,     a3,    t4
-    stx.h         t1,     t2,    t0
-    addi.d        t0,     t0,    2
-    addi.d        t4,     t4,    1
-8:  // &1
-    sub.d         t1,     t6,    t5
-    andi          t1,     t1,    1
     beqz          t1,     9f
 
+    ldx.bu        t1,     a3,    t4
+    stx.h         t1,     t2,    t0
+    addi.d        t0,     t0,    2
+    addi.d        t4,     t4,    1
     ldx.bu        t1,     a3,    t4
     stx.h         t1,     t2,    t0
     addi.d        t0,     t0,    2
@@ -1170,20 +1158,12 @@ endconst
     addi.d        t1,     t1,    8
 17:  // &2
     andi          t0,     t6,    2
-    beqz          t0,     18f
-
-    ldx.bu        t2,     s6,    t3
-    stx.h         t2,     s0,    t1
-    addi.d        t3,     t3,    1
-    addi.d        t1,     t1,    2
-    ldx.bu        t2,     s6,    t3
-    stx.h         t2,     s0,    t1
-    addi.d        t3,     t3,    1
-    addi.d        t1,     t1,    2
-18:  // &1
-    andi          t0,     t6,    1
     beqz          t0,     19f
 
+    ldx.bu        t2,     s6,    t3
+    stx.h         t2,     s0,    t1
+    addi.d        t3,     t3,    1
+    addi.d        t1,     t1,    2
     ldx.bu        t2,     s6,    t3
     stx.h         t2,     s0,    t1
     addi.d        t3,     t3,    1
@@ -1230,21 +1210,12 @@ endconst
 24:  // &2
     sub.d         t0,     t6,    t5
     andi          t0,     t0,    2
-    beqz          t0,     25f
-
-    ldx.bu        t2,     a4,    t3
-    stx.h         t2,     s0,    t1
-    addi.d        t3,     t3,    1
-    addi.d        t1,     t1,    2
-    ldx.bu        t2,     a4,    t3
-    stx.h         t2,     s0,    t1
-    addi.d        t3,     t3,    1
-    addi.d        t1,     t1,    2
-25:  // &1
-    sub.d         t0,     t6,    t5
-    andi          t0,     t0,    1
     beqz          t0,     26f
 
+    ldx.bu        t2,     a4,    t3
+    stx.h         t2,     s0,    t1
+    addi.d        t3,     t3,    1
+    addi.d        t1,     t1,    2
     ldx.bu        t2,     a4,    t3
     stx.h         t2,     s0,    t1
     addi.d        t3,     t3,    1
@@ -1265,11 +1236,11 @@ endconst
     sub.w          t3,    t2,    t3
     sub.w          t3,    s7,    t3  //sec_shift
 
-    vreplgr2vr.w   vr4,   t0         //pri_tap_k
-    vreplgr2vr.w   vr9,   a5         //pri_strength
-    vreplgr2vr.w   vr10,  t1         //pri_shift
-    vreplgr2vr.w   vr18,  a6         //sec_strength
-    vreplgr2vr.w   vr19,  t3         //sec_shift
+    vreplgr2vr.h   vr4,   t0         //pri_tap_k
+    vreplgr2vr.h   vr9,   a5         //pri_strength
+    vreplgr2vr.h   vr10,  t1         //pri_shift
+    vreplgr2vr.h   vr18,  a6         //sec_strength
+    vreplgr2vr.h   vr19,  t3         //sec_shift
 
     or             t2,    s1,    s1  //dowhile loop param
     addi.d         s1,    a7,    2
@@ -1298,9 +1269,9 @@ endconst
 .endm
 
 .macro cdef_pri_init
-    vreplgr2vr.w   vr4,   t0         //pri_tap_k
-    vreplgr2vr.w   vr9,   a5         //pri_strength
-    vreplgr2vr.w   vr10,  t1         //pri_shift
+    vreplgr2vr.h   vr4,   t0         //pri_tap_k
+    vreplgr2vr.h   vr9,   a5         //pri_strength
+    vreplgr2vr.h   vr10,  t1         //pri_shift
 
     or             t2,    s1,    s1  //dowhile loop param
     addi.d         s1,    a7,    2
@@ -1321,8 +1292,8 @@ endconst
     sub.w          t3,    t2,    t3
     sub.w          t3,    s7,    t3  //sec_shift
 
-    vreplgr2vr.w   vr18,  a6         //sec_strength
-    vreplgr2vr.w   vr19,  t3         //sec_shift
+    vreplgr2vr.h   vr18,  a6         //sec_strength
+    vreplgr2vr.h   vr19,  t3         //sec_shift
 
     or             t2,    s1,    s1  //dowhile loop param
     addi.d         s2,    a7,    4
@@ -1344,59 +1315,132 @@ endconst
     slli.d         s3,    s3,    1
 .endm
 
-.macro cdef_process_data in0, in1
-    vsllwil.w.h    vr5,   vr5,   0
-    vsllwil.w.h    vr6,   vr6,   0
-    vsllwil.w.h    vr7,   vr7,   0
-    vsllwil.w.h    vr8,   vr8,   0
+.macro cdef_process_data_w8 in0, in1
+    vbsrl.v      vr11,   vr5,   8
+    vsllwil.w.h  vr16,   vr5,   0
+    vsllwil.w.h  vr11,   vr11,  0
+    vsub.w       vr16,   vr16,  vr24
+    vsub.w       vr11,   vr11,  vr26
+    vmax.w       vr16,   vr16,  vr25
+    vmax.w       vr11,   vr11,  vr25
+    vssrani.h.w  vr11,   vr16,  0
 
-    vsub.w         vr11,  vr5,   vr0
-    vsub.w         vr12,  vr6,   vr0
-    vsub.w         vr13,  vr7,   vr0
-    vsub.w         vr14,  vr8,   vr0
+    vbsrl.v      vr12,   vr6,   8
+    vsllwil.w.h  vr16,   vr6,   0
+    vsllwil.w.h  vr12,   vr12,  0
+    vsub.w       vr16,   vr16,  vr24
+    vsub.w       vr12,   vr12,  vr26
+    vmax.w       vr16,   vr16,  vr25
+    vmax.w       vr12,   vr12,  vr25
+    vssrani.h.w  vr12,   vr16,  0
 
-    constrain_vr   vr11,  \in0,   \in1,  vr16,  vr17,  vr11
-    constrain_vr   vr12,  \in0,   \in1,  vr16,  vr17,  vr12
-    constrain_vr   vr13,  \in0,   \in1,  vr16,  vr17,  vr13
-    constrain_vr   vr14,  \in0,   \in1,  vr16,  vr17,  vr14
+    vbsrl.v      vr13,   vr7,   8
+    vsllwil.w.h  vr16,   vr7,   0
+    vsllwil.w.h  vr13,   vr13,  0
+    vsub.w       vr16,   vr16,  vr24
+    vsub.w       vr13,   vr13,  vr26
+    vmax.w       vr16,   vr16,  vr25
+    vmax.w       vr13,   vr13,  vr25
+    vssrani.h.w  vr13,   vr16,  0
+
+    vbsrl.v      vr14,   vr8,   8
+    vsllwil.w.h  vr16,   vr8,   0
+    vsllwil.w.h  vr14,   vr14,  0
+    vsub.w       vr16,   vr16,  vr24
+    vsub.w       vr14,   vr14,  vr26
+    vmax.w       vr16,   vr16,  vr25
+    vmax.w       vr14,   vr14,  vr25
+    vssrani.h.w  vr14,   vr16,  0
+
+    constrain_vrh   vr11,  \in0,   \in1,  vr16,  vr17,  vr11
+    constrain_vrh   vr12,  \in0,   \in1,  vr16,  vr17,  vr12
+    constrain_vrh   vr13,  \in0,   \in1,  vr16,  vr17,  vr13
+    constrain_vrh   vr14,  \in0,   \in1,  vr16,  vr17,  vr14
 .endm
 
-.macro cdef_calc_sum_tapchange
-    vmadd.w        vr1,   vr15,  vr11  //sum
-    vmadd.w        vr1,   vr15,  vr12
+.macro cdef_process_data_w4 in0, in1
+    vsllwil.w.h  vr11,   vr5,   0
+    vsllwil.w.h  vr12,   vr6,   0
+    vsllwil.w.h  vr13,   vr7,   0
+    vsllwil.w.h  vr14,   vr8,   0
 
+    vsub.w         vr11,  vr11,   vr24
+    vsub.w         vr12,  vr12,   vr24
+    vsub.w         vr13,  vr13,   vr24
+    vsub.w         vr14,  vr14,   vr24
+
+    vmax.w       vr11,   vr11,  vr25
+    vmax.w       vr12,   vr12,  vr25
+    vmax.w       vr13,   vr13,  vr25
+    vmax.w       vr14,   vr14,  vr25
+
+    vsrlni.h.w   vr11,   vr11,  0
+    vsrlni.h.w   vr12,   vr12,  0
+    vsrlni.h.w   vr13,   vr13,  0
+    vsrlni.h.w   vr14,   vr14,  0
+
+    vpermi.w     vr12,   vr11,  0x44
+    vpermi.w     vr14,   vr13,  0x44
+    vpermi.w     vr6,    vr5,   0x44
+    vpermi.w     vr8,    vr7,   0x44
+
+    constrain_vrh   vr12,  \in0,   \in1,  vr16,  vr17,  vr12
+    constrain_vrh   vr14,  \in0,   \in1,  vr16,  vr17,  vr14
+.endm
+
+.macro cdef_calc_sum_tapchange_w8
+    vmul.h         vr1,   vr15,  vr11  //sum
+    vmadd.h        vr1,   vr15,  vr12  //sum
     vand.v         vr15,  vr15,  vr21
     vor.v          vr15,  vr15,  vr22
-
-    vmadd.w        vr1,   vr15,  vr13  //sum
-    vmadd.w        vr1,   vr15,  vr14
+    vmadd.h        vr1,   vr15,  vr13  //sum
+    vmadd.h        vr1,   vr15,  vr14  //sum
 .endm
 
-.macro cdef_calc_sum_no_tapchange in0
-    vmadd.w        vr1,   \in0,  vr11  //sum
-    vmadd.w        vr1,   \in0,  vr12
-    vmadd.w        vr1,   \in0,  vr13
-    vmadd.w        vr1,   \in0,  vr14
+.macro cdef_calc_sum_tapchange_w4
+    vmul.h         vr1,   vr15,  vr12  //sum
+    vand.v         vr15,  vr15,  vr21
+    vor.v          vr15,  vr15,  vr22
+    vmadd.h        vr1,   vr15,  vr14  //sum
 .endm
 
-.macro cdef_calc_maxmin
-    vmin.wu        vr3,   vr5,   vr3
-    vmax.w         vr2,   vr5,   vr2
-    vmin.wu        vr3,   vr6,   vr3
-    vmax.w         vr2,   vr6,   vr2
-    vmin.wu        vr3,   vr7,   vr3
-    vmax.w         vr2,   vr7,   vr2
-    vmin.wu        vr3,   vr8,   vr3  //min
-    vmax.w         vr2,   vr8,   vr2  //max
+.macro cdef_calc_sum_no_tapchange_w4 in0
+    vmadd.h        vr1,   \in0,  vr12
+    vmadd.h        vr1,   \in0,  vr14
+.endm
+
+.macro cdef_calc_sum_no_tapchange_w8 in0
+    vmadd.h        vr1,   \in0,  vr11  //sum
+    vmadd.h        vr1,   \in0,  vr12
+    vmadd.h        vr1,   \in0,  vr13
+    vmadd.h        vr1,   \in0,  vr14
+.endm
+
+.macro cdef_calc_maxmin_w4
+    vmin.hu        vr3,   vr6,   vr3
+    vmax.h         vr2,   vr6,   vr2
+    vmin.hu        vr3,   vr8,   vr3  //min
+    vmax.h         vr2,   vr8,   vr2  //max
+.endm
+
+.macro cdef_calc_maxmin_w8
+    vmin.hu        vr3,   vr5,   vr3
+    vmax.h         vr2,   vr5,   vr2
+    vmin.hu        vr3,   vr6,   vr3
+    vmax.h         vr2,   vr6,   vr2
+    vmin.hu        vr3,   vr7,   vr3
+    vmax.h         vr2,   vr7,   vr2
+    vmin.hu        vr3,   vr8,   vr3  //min
+    vmax.h         vr2,   vr8,   vr2  //max
 .endm
 
 .macro cdef_calc_dst
-    vslti.w        vr5,   vr1,   0
+    vslti.h        vr5,   vr1,   0
     vand.v         vr5,   vr5,   vr20
-    vsub.w         vr5,   vr1,   vr5
-    vaddi.wu       vr5,   vr5,   8
-    vsrai.w        vr5,   vr5,   4
-    vadd.w         vr5,   vr0,   vr5
+    vsub.h         vr5,   vr1,   vr5
+    vaddi.hu       vr5,   vr5,   8
+    vsrai.h        vr5,   vr5,   4
+    vadd.h         vr5,   vr0,   vr5
 .endm
 
 //static NOINLINE void cdef_filter_block_lsx
@@ -1411,7 +1455,7 @@ endconst
 function cdef_filter_block_4x4_8bpc_lsx
     ld.w           t0,    sp,    0
     ld.w           t1,    sp,    8
-    addi.d         sp,    sp,    -(64+288)
+    addi.d         sp,    sp,    -(80+288)
     st.d           s0,    sp,    0
     st.d           s1,    sp,    8
     st.d           s2,    sp,    16
@@ -1420,6 +1464,8 @@ function cdef_filter_block_4x4_8bpc_lsx
     st.d           s5,    sp,    40
     st.d           s6,    sp,    48
     st.d           s7,    sp,    56
+    fst.d          f24,   sp,    64
+    fst.d          f25,   sp,    72
 
     li.w           s0,    4         //w
     li.w           s1,    4         //h
@@ -1427,18 +1473,21 @@ function cdef_filter_block_4x4_8bpc_lsx
     or             s7,    t0,    t0 //damping
 
     li.d           s5,    12         //tmp_stride
-    addi.d         s4,    sp,    64
+    addi.d         s4,    sp,    80
     slli.d         t0,    s5,    1
     addi.d         t0,    t0,    2
     slli.d         t0,    t0,    1
     add.d          s4,    s4,    t0  //ptr tmp
     vxor.v         vr23,  vr23,  vr23
-    li.w           t0,    3
-    li.w           t1,    2
     li.w           t2,    1
-    vreplgr2vr.w   vr20,  t2
-    vreplgr2vr.w   vr21,  t0
-    vreplgr2vr.w   vr22,  t1
+    vreplgr2vr.h   vr20,  t2
+    vaddi.hu       vr21,  vr20,  2
+    vaddi.hu       vr22,  vr20,  1
+
+    li.w          t0,     -32768
+    vreplgr2vr.h  vr18,   t0
+    li.w          t4,     -32767
+    vreplgr2vr.w  vr25,   t4
 
     //padding
     li.w          t5,     -2        //x_start
@@ -1530,9 +1579,9 @@ function cdef_filter_block_4x4_8bpc_lsx
     cdef_pri_sec_init
 
 30:
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.s          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
 
     vxor.v         vr1,   vr1,   vr1   //sum
     vor.v          vr2,   vr0,   vr0   //max
@@ -1547,11 +1596,9 @@ function cdef_filter_block_4x4_8bpc_lsx
     fldx.d         f7,    s4,    a3   //p0_10
     fld.d          f8,    t5,    0    //p0_11
 
-    cdef_process_data vr9, vr10
-
-    cdef_calc_sum_tapchange
-
-    cdef_calc_maxmin
+    cdef_process_data_w4 vr9,   vr10
+    cdef_calc_sum_tapchange_w4
+    cdef_calc_maxmin_w4
 
     sub.d          t4,    s4,    s1  //tmp[-off02]
     sub.d          t5,    s4,    t0  //tmp[-off03]
@@ -1561,11 +1608,9 @@ function cdef_filter_block_4x4_8bpc_lsx
     fldx.d         f7,    s4,    t0   //s0_02
     fld.d          f8,    t5,    0    //s0_03
 
-    cdef_process_data vr18, vr19
-
-    cdef_calc_sum_no_tapchange vr22
-
-    cdef_calc_maxmin
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr22
+    cdef_calc_maxmin_w4
 
     sub.d          t4,    s4,    s2  //tmp[-off12]
     sub.d          t5,    s4,    s3  //tmp[-off13]
@@ -1575,19 +1620,21 @@ function cdef_filter_block_4x4_8bpc_lsx
     fldx.d         f7,    s4,    s3   //s0_12
     fld.d          f8,    t5,    0    //s0_13
 
-    cdef_process_data vr18, vr19
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr20
+    cdef_calc_maxmin_w4
 
-    cdef_calc_sum_no_tapchange vr20
-
-    cdef_calc_maxmin
+    vshuf4i.w      vr5,   vr1,   0x0e
+    vshuf4i.w      vr6,   vr3,   0x0e
+    vshuf4i.w      vr7,   vr2,   0x0e
+    vadd.h         vr1,   vr1,   vr5
+    vmin.hu        vr3,   vr6,   vr3
+    vmax.h         vr2,   vr7,   vr2
 
     cdef_calc_dst
+    iclip_vrh       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
 
-    iclip_vr       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
-
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
     fst.s          f5,    a0,    0
 
     add.d          a0,    a0,    a1
@@ -1602,9 +1649,9 @@ function cdef_filter_block_4x4_8bpc_lsx
     cdef_pri_init
 
 32:
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.s          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
 
     vxor.v         vr1,   vr1,   vr1   //sum
     vor.v          vr15,  vr4,   vr4   //pri_tap_k
@@ -1617,15 +1664,15 @@ function cdef_filter_block_4x4_8bpc_lsx
     fldx.d         f7,    s4,    a3   //p0_10
     fld.d          f8,    t5,    0    //p0_11
 
-    cdef_process_data vr9, vr10
+    cdef_process_data_w4 vr9,   vr10
+    cdef_calc_sum_tapchange_w4
 
-    cdef_calc_sum_tapchange
+    vshuf4i.w      vr5,   vr1,   0x0e
+    vadd.h         vr1,   vr1,   vr5
 
     cdef_calc_dst
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
     fst.s          f5,    a0,    0
 
     add.d          a0,    a0,    a1
@@ -1640,9 +1687,9 @@ function cdef_filter_block_4x4_8bpc_lsx
     cdef_sec_init
 
 34:
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.s          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
 
     vxor.v         vr1,   vr1,   vr1   //sum
 
@@ -1654,9 +1701,8 @@ function cdef_filter_block_4x4_8bpc_lsx
     fldx.d         f7,    s4,    t0   //s0_02
     fld.d          f8,    t5,    0    //s0_03
 
-    cdef_process_data vr18, vr19
-
-    cdef_calc_sum_no_tapchange vr22
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr22
 
     sub.d          t4,    s4,    s2  //tmp[-off12]
     sub.d          t5,    s4,    s3  //tmp[-off13]
@@ -1666,15 +1712,15 @@ function cdef_filter_block_4x4_8bpc_lsx
     fldx.d         f7,    s4,    s3   //s0_12
     fld.d          f8,    t5,    0    //s0_13
 
-    cdef_process_data vr18, vr19
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr20
 
-    cdef_calc_sum_no_tapchange vr20
+    vshuf4i.w      vr5,   vr1,   0x0e
+    vadd.h         vr1,   vr1,   vr5
 
     cdef_calc_dst
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
     fst.s          f5,    a0,    0
 
     add.d          a0,    a0,    a1
@@ -1693,13 +1739,15 @@ function cdef_filter_block_4x4_8bpc_lsx
     ld.d           s5,    sp,    40
     ld.d           s6,    sp,    48
     ld.d           s7,    sp,    56
-    addi.d         sp,    sp,    (64+288)
+    fld.d          f24,   sp,    64
+    fld.d          f25,   sp,    72
+    addi.d         sp,    sp,    (80+288)
 endfunc
 
 function cdef_filter_block_4x8_8bpc_lsx
     ld.w           t0,    sp,    0
     ld.w           t1,    sp,    8
-    addi.d         sp,    sp,    -(64+288)
+    addi.d         sp,    sp,    -(80+288)
     st.d           s0,    sp,    0
     st.d           s1,    sp,    8
     st.d           s2,    sp,    16
@@ -1708,6 +1756,8 @@ function cdef_filter_block_4x8_8bpc_lsx
     st.d           s5,    sp,    40
     st.d           s6,    sp,    48
     st.d           s7,    sp,    56
+    fst.d          f24,   sp,    64
+    fst.d          f25,   sp,    72
 
     li.w           s0,    4         //w
     li.w           s1,    8         //h
@@ -1715,18 +1765,21 @@ function cdef_filter_block_4x8_8bpc_lsx
     or             s7,    t0,    t0 //damping
 
     li.d           s5,    12         //tmp_stride
-    addi.d         s4,    sp,    64
+    addi.d         s4,    sp,    80
     slli.d         t0,    s5,    1
     addi.d         t0,    t0,    2
     slli.d         t0,    t0,    1
     add.d          s4,    s4,    t0  //ptr tmp
     vxor.v         vr23,  vr23,  vr23
-    li.w           t0,    3
-    li.w           t1,    2
     li.w           t2,    1
-    vreplgr2vr.w   vr20,  t2
-    vreplgr2vr.w   vr21,  t0
-    vreplgr2vr.w   vr22,  t1
+    vreplgr2vr.h   vr20,  t2
+    vaddi.hu       vr21,  vr20,  2
+    vaddi.hu       vr22,  vr20,  1
+
+    li.w          t0,     -32768
+    vreplgr2vr.h  vr18,   t0
+    li.w          t4,     -32767
+    vreplgr2vr.w  vr25,   t4
 
     //padding
     li.w          t5,     -2        //x_start
@@ -1818,9 +1871,9 @@ function cdef_filter_block_4x8_8bpc_lsx
     cdef_pri_sec_init
 
 30:
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.s          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
 
     vxor.v         vr1,   vr1,   vr1   //sum
     vor.v          vr2,   vr0,   vr0   //max
@@ -1835,11 +1888,9 @@ function cdef_filter_block_4x8_8bpc_lsx
     fldx.d         f7,    s4,    a3   //p0_10
     fld.d          f8,    t5,    0    //p0_11
 
-    cdef_process_data vr9, vr10
-
-    cdef_calc_sum_tapchange
-
-    cdef_calc_maxmin
+    cdef_process_data_w4 vr9,   vr10
+    cdef_calc_sum_tapchange_w4
+    cdef_calc_maxmin_w4
 
     sub.d          t4,    s4,    s1  //tmp[-off02]
     sub.d          t5,    s4,    t0  //tmp[-off03]
@@ -1849,11 +1900,9 @@ function cdef_filter_block_4x8_8bpc_lsx
     fldx.d         f7,    s4,    t0   //s0_02
     fld.d          f8,    t5,    0    //s0_03
 
-    cdef_process_data vr18, vr19
-
-    cdef_calc_sum_no_tapchange vr22
-
-    cdef_calc_maxmin
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr22
+    cdef_calc_maxmin_w4
 
     sub.d          t4,    s4,    s2  //tmp[-off12]
     sub.d          t5,    s4,    s3  //tmp[-off13]
@@ -1863,19 +1912,21 @@ function cdef_filter_block_4x8_8bpc_lsx
     fldx.d         f7,    s4,    s3   //s0_12
     fld.d          f8,    t5,    0    //s0_13
 
-    cdef_process_data vr18, vr19
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr20
+    cdef_calc_maxmin_w4
 
-    cdef_calc_sum_no_tapchange vr20
-
-    cdef_calc_maxmin
+    vshuf4i.w      vr5,   vr1,   0x0e
+    vshuf4i.w      vr6,   vr3,   0x0e
+    vshuf4i.w      vr7,   vr2,   0x0e
+    vadd.h         vr1,   vr1,   vr5
+    vmin.hu        vr3,   vr6,   vr3
+    vmax.h         vr2,   vr7,   vr2
 
     cdef_calc_dst
+    iclip_vrh       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
 
-    iclip_vr       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
-
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
     fst.s          f5,    a0,    0
 
     add.d          a0,    a0,    a1
@@ -1890,9 +1941,9 @@ function cdef_filter_block_4x8_8bpc_lsx
     cdef_pri_init
 
 32:
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.s          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
 
     vxor.v         vr1,   vr1,   vr1   //sum
     vor.v          vr15,  vr4,   vr4   //pri_tap_k
@@ -1905,15 +1956,15 @@ function cdef_filter_block_4x8_8bpc_lsx
     fldx.d         f7,    s4,    a3   //p0_10
     fld.d          f8,    t5,    0    //p0_11
 
-    cdef_process_data vr9, vr10
+    cdef_process_data_w4 vr9,   vr10
+    cdef_calc_sum_tapchange_w4
 
-    cdef_calc_sum_tapchange
+    vshuf4i.w      vr5,   vr1,   0x0e
+    vadd.h         vr1,   vr1,   vr5
 
     cdef_calc_dst
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
     fst.s          f5,    a0,    0
 
     add.d          a0,    a0,    a1
@@ -1928,9 +1979,9 @@ function cdef_filter_block_4x8_8bpc_lsx
     cdef_sec_init
 
 34:
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.s          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
 
     vxor.v         vr1,   vr1,   vr1   //sum
 
@@ -1942,9 +1993,8 @@ function cdef_filter_block_4x8_8bpc_lsx
     fldx.d         f7,    s4,    t0   //s0_02
     fld.d          f8,    t5,    0    //s0_03
 
-    cdef_process_data vr18, vr19
-
-    cdef_calc_sum_no_tapchange vr22
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr22
 
     sub.d          t4,    s4,    s2  //tmp[-off12]
     sub.d          t5,    s4,    s3  //tmp[-off13]
@@ -1954,15 +2004,15 @@ function cdef_filter_block_4x8_8bpc_lsx
     fldx.d         f7,    s4,    s3   //s0_12
     fld.d          f8,    t5,    0    //s0_13
 
-    cdef_process_data vr18, vr19
+    cdef_process_data_w4 vr18, vr19
+    cdef_calc_sum_no_tapchange_w4 vr20
 
-    cdef_calc_sum_no_tapchange vr20
+    vshuf4i.w      vr5,   vr1,   0x0e
+    vadd.h         vr1,   vr1,   vr5
 
     cdef_calc_dst
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
     fst.s          f5,    a0,    0
 
     add.d          a0,    a0,    a1
@@ -1981,13 +2031,15 @@ function cdef_filter_block_4x8_8bpc_lsx
     ld.d           s5,    sp,    40
     ld.d           s6,    sp,    48
     ld.d           s7,    sp,    56
-    addi.d         sp,    sp,    (64+288)
+    fld.d          f24,   sp,    64
+    fld.d          f25,   sp,    72
+    addi.d         sp,    sp,    (80+288)
 endfunc
 
 function cdef_filter_block_8x8_8bpc_lsx
     ld.w           t0,    sp,    0
     ld.w           t1,    sp,    8
-    addi.d         sp,    sp,    -(64+288)
+    addi.d         sp,    sp,    -(88+288)
     st.d           s0,    sp,    0
     st.d           s1,    sp,    8
     st.d           s2,    sp,    16
@@ -1996,25 +2048,32 @@ function cdef_filter_block_8x8_8bpc_lsx
     st.d           s5,    sp,    40
     st.d           s6,    sp,    48
     st.d           s7,    sp,    56
+    fst.d          f24,   sp,    64
+    fst.d          f25,   sp,    72
+    fst.d          f26,   sp,    80
 
     li.w           s0,    8         //w
     li.w           s1,    8         //h
     or             s2,    t1,    t1 //edges
     or             s7,    t0,    t0 //damping
 
+    // cdef_filter_block_kernel
     li.d           s5,    12         //tmp_stride
-    addi.d         s4,    sp,    64
+    addi.d         s4,    sp,    88
     slli.d         t0,    s5,    1
     addi.d         t0,    t0,    2
     slli.d         t0,    t0,    1
     add.d          s4,    s4,    t0  //ptr tmp
     vxor.v         vr23,  vr23,  vr23
-    li.w           t0,    3
-    li.w           t1,    2
     li.w           t2,    1
-    vreplgr2vr.w   vr20,  t2
-    vreplgr2vr.w   vr21,  t0
-    vreplgr2vr.w   vr22,  t1
+    vreplgr2vr.h   vr20,  t2
+    vaddi.hu       vr21,  vr20,  2
+    vaddi.hu       vr22,  vr20,  1
+
+    li.w          t0,     -32768
+    vreplgr2vr.h  vr18,   t0
+    li.w          t4,     -32767
+    vreplgr2vr.w  vr25,   t4
 
     //padding
     li.w          t5,     -2        //x_start
@@ -2090,28 +2149,28 @@ function cdef_filter_block_8x8_8bpc_lsx
     andi           t1,    a5,    1
     sub.d          t0,    t0,    t1  //pri_tap
 
+    //edit
     clz.w          t1,    a5
     li.d           t2,    31
-    sub.w          t1,    t2,    t1
-    sub.w          t1,    s7,    t1
+    sub.w          t3,    t2,    t1
+    sub.w          t3,    s7,    t3
 
-    blt            t1,    zero,  281f
-    or             t1,    t1,    t1
-    b              282f
-281:
     or             t1,    zero,  zero   //t1: pri_shift
-282:
+    blt            t3,    zero,  281f
+    or             t1,    t3,    t3
+281:
 
     beqz           a6,    31f
 
 29:  //if (sec_strength)
     cdef_pri_sec_init
 
-30:
-    //0-3
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+301:
+    fld.d          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
+    vbsrl.v        vr26,  vr0,   8
+    vsllwil.wu.hu  vr26,  vr26,  0
 
     vxor.v         vr1,   vr1,   vr1   //sum
     vor.v          vr2,   vr0,   vr0   //max
@@ -2121,137 +2180,65 @@ function cdef_filter_block_8x8_8bpc_lsx
     sub.d          t4,    s4,    a2
     sub.d          t5,    s4,    a3
 
-    fldx.d         f5,    s4,    a2   //p0_00
-    fld.d          f6,    t4,    0    //p0_01
-    fldx.d         f7,    s4,    a3   //p0_10
-    fld.d          f8,    t5,    0    //p0_11
+    vldx           vr5,  s4,    a2
+    vld            vr6,  t4,    0
+    vldx           vr7,  s4,    a3
+    vld            vr8,  t5,    0
 
-    cdef_process_data vr9, vr10
+    cdef_process_data_w8 vr9, vr10
+    cdef_calc_sum_tapchange_w8
+    cdef_calc_maxmin_w8
 
-    cdef_calc_sum_tapchange
-
-    cdef_calc_maxmin
-
+    //s 00-03
     sub.d          t4,    s4,    s1  //tmp[-off02]
     sub.d          t5,    s4,    t0  //tmp[-off03]
 
-    fldx.d         f5,    s4,    s1   //s0_00
-    fld.d          f6,    t4,    0    //s0_01
-    fldx.d         f7,    s4,    t0   //s0_02
-    fld.d          f8,    t5,    0    //s0_03
+    vldx           vr5,  s4,    s1
+    vld            vr6,  t4,    0
+    vldx           vr7,  s4,    t0
+    vld            vr8,  t5,    0
 
-    cdef_process_data vr18, vr19
+    cdef_process_data_w8 vr18, vr19
+    cdef_calc_sum_no_tapchange_w8 vr22
+    cdef_calc_maxmin_w8
 
-    cdef_calc_sum_no_tapchange vr22
-
-    cdef_calc_maxmin
-
+    //s 10-13
     sub.d          t4,    s4,    s2  //tmp[-off12]
     sub.d          t5,    s4,    s3  //tmp[-off13]
 
-    fldx.d         f5,    s4,    s2   //s0_10
-    fld.d          f6,    t4,    0    //s0_11
-    fldx.d         f7,    s4,    s3   //s0_12
-    fld.d          f8,    t5,    0    //s0_13
+    vldx           vr5,  s4,    s2
+    vld            vr6,  t4,    0
+    vldx           vr7,  s4,    s3
+    vld            vr8,  t5,    0
 
-    cdef_process_data vr18, vr19
+    cdef_process_data_w8 vr18, vr19
+    cdef_calc_sum_no_tapchange_w8 vr20
 
-    cdef_calc_sum_no_tapchange vr20
-
-    cdef_calc_maxmin
-
+    cdef_calc_maxmin_w8
     cdef_calc_dst
 
-    iclip_vr       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
+    iclip_vrh       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
-    fst.s          f5,    a0,    0
-
-    //4-7
-    fld.s          f0,    a0,    4     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
-
-    vxor.v         vr1,   vr1,   vr1   //sum
-    vor.v          vr2,   vr0,   vr0   //max
-    vor.v          vr3,   vr0,   vr0   //min
-    vor.v          vr15,  vr4,   vr4   //pri_tap_k
-
-    sub.d          t4,    s4,    a2
-    sub.d          t5,    s4,    a3
-    add.d          t6,    s4,    a2
-    add.d          t7,    s4,    a3
-
-    fld.d          f5,    t6,    8    //p0_00
-    fld.d          f6,    t4,    8    //p0_01
-    fld.d          f7,    t7,    8    //p0_10
-    fld.d          f8,    t5,    8    //p0_11
-
-    cdef_process_data vr9, vr10
-
-    cdef_calc_sum_tapchange
-
-    cdef_calc_maxmin
-
-    sub.d          t4,    s4,    s1  //tmp[-off02]
-    sub.d          t5,    s4,    t0  //tmp[-off03]
-    add.d          t6,    s4,    s1  //tmp[+off02]
-    add.d          t7,    s4,    t0  //tmp[+off03]
-
-    fld.d          f5,    t6,    8    //s0_00
-    fld.d          f6,    t4,    8    //s0_01
-    fld.d          f7,    t7,    8    //s0_02
-    fld.d          f8,    t5,    8    //s0_03
-
-    cdef_process_data vr18,  vr19
-
-    cdef_calc_sum_no_tapchange vr22
-
-    cdef_calc_maxmin
-
-    sub.d          t4,    s4,    s2  //tmp[-off12]
-    sub.d          t5,    s4,    s3  //tmp[-off13]
-    add.d          t6,    s4,    s2  //tmp[+off12]
-    add.d          t7,    s4,    s3  //tmp[+off13]
-
-    fld.d          f5,    t6,    8    //s0_10
-    fld.d          f6,    t4,    8    //s0_11
-    fld.d          f7,    t7,    8    //s0_12
-    fld.d          f8,    t5,    8    //s0_13
-
-    cdef_process_data vr18,  vr19
-
-    cdef_calc_sum_no_tapchange vr20
-
-    cdef_calc_maxmin
-
-    cdef_calc_dst
-
-    iclip_vr       vr5,   vr3,   vr2,  vr16,  vr17,  vr5
-
-    vsrlni.h.w     vr5,   vr5,   0
-    vsrlni.b.h     vr5,   vr5,   0
-
-    fst.s          f5,    a0,    4
+    fst.d          f5,    a0,    0
 
     add.d          a0,    a0,    a1
     add.d          s4,    s4,    s5
     add.d          s4,    s4,    s5
 
     addi.d         t2,    t2,    -1
-    blt            zero,  t2,    30b
+    blt            zero,  t2,    301b
     b              35f
 
 31:  // pri_strength only
     cdef_pri_init
 
 32:
-    //0-3
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.d          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
+    vbsrl.v        vr26,  vr0,   8
+    vsllwil.wu.hu  vr26,  vr26,  0
 
     vxor.v         vr1,   vr1,   vr1   //sum
     vor.v          vr15,  vr4,   vr4   //pri_tap_k
@@ -2259,50 +2246,17 @@ function cdef_filter_block_8x8_8bpc_lsx
     sub.d          t4,    s4,    a2
     sub.d          t5,    s4,    a3
 
-    fldx.d         f5,    s4,    a2   //p0_00
-    fld.d          f6,    t4,    0    //p0_01
-    fldx.d         f7,    s4,    a3   //p0_10
-    fld.d          f8,    t5,    0    //p0_11
+    vldx           vr5,  s4,    a2
+    vld            vr6,  t4,    0
+    vldx           vr7,  s4,    a3
+    vld            vr8,  t5,    0
 
-    cdef_process_data vr9, vr10
-
-    cdef_calc_sum_tapchange
-
+    cdef_process_data_w8 vr9, vr10
+    cdef_calc_sum_tapchange_w8
     cdef_calc_dst
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
-    fst.s          f5,    a0,    0
-
-    //4-7
-    fld.s          f0,    a0,    4     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
-
-    vxor.v         vr1,   vr1,   vr1   //sum
-    vor.v          vr15,  vr4,   vr4   //pri_tap_k
-
-    sub.d          t4,    s4,    a2
-    sub.d          t5,    s4,    a3
-    add.d          t6,    s4,    a2
-    add.d          t7,    s4,    a3
-
-    fld.d          f5,    t6,    8    //p0_00
-    fld.d          f6,    t4,    8    //p0_01
-    fld.d          f7,    t7,    8    //p0_10
-    fld.d          f8,    t5,    8    //p0_11
-
-    cdef_process_data vr9,   vr10
-
-    cdef_calc_sum_tapchange
-
-    cdef_calc_dst
-
-    vsrlni.h.w     vr5,   vr5,   0
-    vsrlni.b.h     vr5,   vr5,   0
-
-    fst.s          f5,    a0,    4
+    fst.d          f5,    a0,    0
 
     add.d          a0,    a0,    a1
     add.d          s4,    s4,    s5
@@ -2316,85 +2270,39 @@ function cdef_filter_block_8x8_8bpc_lsx
     cdef_sec_init
 
 34:
-    //0-3
-    fld.s          f0,    a0,    0     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
+    fld.d          f24,   a0,    0     //px
+    vsllwil.hu.bu  vr0,   vr24,  0
+    vsllwil.wu.hu  vr24,  vr0,   0
+    vbsrl.v        vr26,  vr0,   8
+    vsllwil.wu.hu  vr26,  vr26,  0
 
     vxor.v         vr1,   vr1,   vr1   //sum
 
     sub.d          t4,    s4,    s1  //tmp[-off02]
     sub.d          t5,    s4,    t0  //tmp[-off03]
 
-    fldx.d         f5,    s4,    s1   //s0_00
-    fld.d          f6,    t4,    0    //s0_01
-    fldx.d         f7,    s4,    t0   //s0_02
-    fld.d          f8,    t5,    0    //s0_03
+    vldx           vr5,  s4,    s1
+    vld            vr6,  t4,    0
+    vldx           vr7,  s4,    t0
+    vld            vr8,  t5,    0
 
-    cdef_process_data vr18,  vr19
-
-    cdef_calc_sum_no_tapchange vr22
-
-    sub.d          t4,    s4,    s2  //tmp[-off12]
-    sub.d          t5,    s4,    s3  //tmp[-off13]
-
-    fldx.d         f5,    s4,    s2   //s0_10
-    fld.d          f6,    t4,    0    //s0_11
-    fldx.d         f7,    s4,    s3   //s0_12
-    fld.d          f8,    t5,    0    //s0_13
-
-    cdef_process_data vr18,  vr19
-
-    cdef_calc_sum_no_tapchange vr20
-
-    cdef_calc_dst
-
-    vsrlni.h.w     vr5,   vr5,   0
-    vsrlni.b.h     vr5,   vr5,   0
-
-    fst.s          f5,    a0,    0
-
-    // 4-7
-    fld.s          f0,    a0,    4     //px
-    vsllwil.hu.bu  vr0,   vr0,   0
-    vsllwil.wu.hu  vr0,   vr0,   0
-
-    vxor.v         vr1,   vr1,   vr1   //sum
-
-    sub.d          t4,    s4,    s1  //tmp[-off02]
-    sub.d          t5,    s4,    t0  //tmp[-off03]
-    add.d          t6,    s4,    s1  //tmp[+off02]
-    add.d          t7,    s4,    t0  //tmp[+off03]
-
-    fld.d          f5,    t6,    8    //s0_00
-    fld.d          f6,    t4,    8    //s0_01
-    fld.d          f7,    t7,    8    //s0_02
-    fld.d          f8,    t5,    8    //s0_03
-
-    cdef_process_data vr18,  vr19
-
-    cdef_calc_sum_no_tapchange vr22
+    cdef_process_data_w8 vr18,  vr19
+    cdef_calc_sum_no_tapchange_w8 vr22
 
     sub.d          t4,    s4,    s2  //tmp[-off12]
     sub.d          t5,    s4,    s3  //tmp[-off13]
-    add.d          t6,    s4,    s2  //tmp[-off12]
-    add.d          t7,    s4,    s3  //tmp[-off13]
 
-    fld.d          f5,    t4,    8    //s0_10
-    fld.d          f6,    t6,    8    //s0_11
-    fld.d          f7,    t5,    8    //s0_12
-    fld.d          f8,    t7,    8    //s0_13
+    vldx           vr5,  s4,    s2
+    vld            vr6,  t4,    0
+    vldx           vr7,  s4,    s3
+    vld            vr8,  t5,    0
 
-    cdef_process_data vr18,  vr19
-
-    cdef_calc_sum_no_tapchange vr20
-
+    cdef_process_data_w8 vr18,  vr19
+    cdef_calc_sum_no_tapchange_w8 vr20
     cdef_calc_dst
 
-    vsrlni.h.w     vr5,   vr5,   0
     vsrlni.b.h     vr5,   vr5,   0
-
-    fst.s          f5,    a0,    4
+    fst.d          f5,    a0,    0
 
     add.d          a0,    a0,    a1
     add.d          s4,    s4,    s5
@@ -2404,7 +2312,6 @@ function cdef_filter_block_8x8_8bpc_lsx
     blt            zero,  t2,    34b
 
 35:
-
     ld.d           s0,    sp,    0
     ld.d           s1,    sp,    8
     ld.d           s2,    sp,    16
@@ -2413,5 +2320,8 @@ function cdef_filter_block_8x8_8bpc_lsx
     ld.d           s5,    sp,    40
     ld.d           s6,    sp,    48
     ld.d           s7,    sp,    56
-    addi.d         sp,    sp,    (64+288)
+    fld.d          f24,   sp,    64
+    fld.d          f25,   sp,    72
+    fld.d          f26,   sp,    80
+    addi.d         sp,    sp,    (88+288)
 endfunc
