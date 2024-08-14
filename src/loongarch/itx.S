@@ -8806,7 +8806,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 
 .rept 4
     vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
-            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
     addi.d t0, t0, 256
 .endr
 
@@ -8818,7 +8818,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 
 .rept 4
     vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
-                       vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
     addi.d        t0,       t0,       256
 .endr
 
@@ -8831,7 +8831,7 @@ function inv_txfm_add_dct_dct_64x64_8bpc_lsx
 
 .rept 4
     vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
-                       vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
     addi.d        t0,       t0,       256
 .endr
 
@@ -9124,7 +9124,7 @@ function inv_txfm_add_dct_dct_64x32_8bpc_lsx
 
 .rept 4
     vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
-            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
     addi.d t0, t0, 256
 .endr
 
@@ -9136,7 +9136,7 @@ function inv_txfm_add_dct_dct_64x32_8bpc_lsx
 
 .rept 4
     vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
-                       vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
     addi.d        t0,       t0,       256
 .endr
 
@@ -9148,7 +9148,7 @@ function inv_txfm_add_dct_dct_64x32_8bpc_lsx
 
 .rept 4
     vst_x16 t0, 0, 16, vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31, \
-                       vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31,
+            vr31, vr31, vr31, vr31, vr31, vr31, vr31, vr31
     addi.d        t0,       t0,       256
 .endr
 
